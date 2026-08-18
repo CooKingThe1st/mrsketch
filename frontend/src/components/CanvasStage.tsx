@@ -1958,53 +1958,261 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 return <Group key="mega_handles_group">{handles}</Group>;
               })()}
 
-              {/* End Point Drag Handle for rect / obstacle scene nodes */}
+              {/* Dual Corner Guidance Drag Handles (Top-Left & Bottom-Right) for rect / obstacle */}
               {(node.type === 'rect' || node.type === 'obstacle') && (() => {
-                const w = (node.width || 2) * scale * nodeScale;
-                const h = (node.height || 2) * scale * nodeScale;
-                const rx = w / 2;
-                const ry = h / 2;
+                const w = node.width || 2;
+                const h = node.height || 2;
+                const halfW = (w * scale * nodeScale) / 2;
+                const halfH = (h * scale * nodeScale) / 2;
+                const rot = node.rotation || 0;
+                const rad = (-rot * Math.PI) / 180;
 
                 return (
-                  <Circle
-                    x={rx}
-                    y={ry}
-                    radius={7}
-                    fill="#38bdf8"
-                    stroke="#ffffff"
-                    strokeWidth={2}
-                    draggable
-                    onMouseEnter={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) stage.container().style.cursor = 'nwse-resize';
-                    }}
-                    onMouseLeave={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) stage.container().style.cursor = 'default';
-                    }}
-                    onDragMove={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) {
-                        const targetW = Math.max(0.5, (e.target.x() * 2) / (scale * nodeScale));
-                        const targetH = Math.max(0.5, (e.target.y() * 2) / (scale * nodeScale));
-                        onUpdateNode({
-                          ...node,
-                          width: Math.round(targetW * 10) / 10,
-                          height: Math.round(targetH * 10) / 10,
-                        });
-                      }
-                    }}
-                    onDragEnd={(e) => {
-                      e.cancelBubble = true;
-                      const targetW = Math.max(0.5, (e.target.x() * 2) / (scale * nodeScale));
-                      const targetH = Math.max(0.5, (e.target.y() * 2) / (scale * nodeScale));
-                      onUpdateNode({
-                        ...node,
-                        width: Math.round(targetW * 10) / 10,
-                        height: Math.round(targetH * 10) / 10,
-                      });
-                    }}
-                  />
+                  <Group key="rect_corner_handles">
+                    {/* Top-Left Corner Handle (Green start / anchor point) */}
+                    <Circle
+                      x={-halfW}
+                      y={-halfH}
+                      radius={6}
+                      fill="#10b981"
+                      stroke="#ffffff"
+                      strokeWidth={2}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'nwse-resize';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                        setActiveSnapPreview(null);
+                      }}
+                      onDragMove={(e) => {
+                        e.cancelBubble = true;
+                        if (rot === 0) {
+                          const absPos = e.target.getAbsolutePosition();
+                          const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                          if (snap.isSnapped && snap.snapType) {
+                            setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
+                          } else {
+                            setActiveSnapPreview(null);
+                          }
+                          const targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
+                          const targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
+
+                          const rightSci = node.x + w / 2;
+                          const bottomSci = node.y - h / 2;
+                          const newW = Math.max(0.2, Math.round((rightSci - targetSciX) * 10) / 10);
+                          const newH = Math.max(0.2, Math.round((targetSciY - bottomSci) * 10) / 10);
+                          const newX = Math.round((rightSci - newW / 2) * 100) / 100;
+                          const newY = Math.round((bottomSci + newH / 2) * 100) / 100;
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            width: newW,
+                            height: newH,
+                          });
+                        } else {
+                          const localTargetX = e.target.x() / (scale * nodeScale);
+                          const localTargetY = -e.target.y() / (scale * nodeScale);
+                          const localRight = w / 2;
+                          const localBottom = -h / 2;
+                          const newW = Math.max(0.2, Math.round((localRight - localTargetX) * 10) / 10);
+                          const newH = Math.max(0.2, Math.round((localTargetY - localBottom) * 10) / 10);
+                          const localDx = localRight - newW / 2;
+                          const localDy = localBottom + newH / 2;
+                          const newX = Math.round((node.x + localDx * Math.cos(rad) - localDy * Math.sin(rad)) * 100) / 100;
+                          const newY = Math.round((node.y + localDx * Math.sin(rad) + localDy * Math.cos(rad)) * 100) / 100;
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            width: newW,
+                            height: newH,
+                          });
+                        }
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        setActiveSnapPreview(null);
+                        if (rot === 0) {
+                          const absPos = e.target.getAbsolutePosition();
+                          const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                          const targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
+                          const targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
+
+                          const rightSci = node.x + w / 2;
+                          const bottomSci = node.y - h / 2;
+                          const newW = Math.max(0.2, Math.round((rightSci - targetSciX) * 10) / 10);
+                          const newH = Math.max(0.2, Math.round((targetSciY - bottomSci) * 10) / 10);
+                          const newX = Math.round((rightSci - newW / 2) * 100) / 100;
+                          const newY = Math.round((bottomSci + newH / 2) * 100) / 100;
+
+                          e.target.position({
+                            x: -(newW * scale * nodeScale) / 2,
+                            y: -(newH * scale * nodeScale) / 2,
+                          });
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            width: newW,
+                            height: newH,
+                          });
+                        } else {
+                          const localTargetX = e.target.x() / (scale * nodeScale);
+                          const localTargetY = -e.target.y() / (scale * nodeScale);
+                          const localRight = w / 2;
+                          const localBottom = -h / 2;
+                          const newW = Math.max(0.2, Math.round((localRight - localTargetX) * 10) / 10);
+                          const newH = Math.max(0.2, Math.round((localTargetY - localBottom) * 10) / 10);
+                          const localDx = localRight - newW / 2;
+                          const localDy = localBottom + newH / 2;
+                          const newX = Math.round((node.x + localDx * Math.cos(rad) - localDy * Math.sin(rad)) * 100) / 100;
+                          const newY = Math.round((node.y + localDx * Math.sin(rad) + localDy * Math.cos(rad)) * 100) / 100;
+
+                          e.target.position({
+                            x: -(newW * scale * nodeScale) / 2,
+                            y: -(newH * scale * nodeScale) / 2,
+                          });
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            width: newW,
+                            height: newH,
+                          });
+                        }
+                      }}
+                    />
+
+                    {/* Bottom-Right Corner Handle (Blue/Cyan end point) */}
+                    <Circle
+                      x={halfW}
+                      y={halfH}
+                      radius={7}
+                      fill="#38bdf8"
+                      stroke="#ffffff"
+                      strokeWidth={2}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'nwse-resize';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                        setActiveSnapPreview(null);
+                      }}
+                      onDragMove={(e) => {
+                        e.cancelBubble = true;
+                        if (rot === 0) {
+                          const absPos = e.target.getAbsolutePosition();
+                          const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                          if (snap.isSnapped && snap.snapType) {
+                            setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
+                          } else {
+                            setActiveSnapPreview(null);
+                          }
+                          const targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
+                          const targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
+
+                          const leftSci = node.x - w / 2;
+                          const topSci = node.y + h / 2;
+                          const newW = Math.max(0.2, Math.round((targetSciX - leftSci) * 10) / 10);
+                          const newH = Math.max(0.2, Math.round((topSci - targetSciY) * 10) / 10);
+                          const newX = Math.round((leftSci + newW / 2) * 100) / 100;
+                          const newY = Math.round((topSci - newH / 2) * 100) / 100;
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            width: newW,
+                            height: newH,
+                          });
+                        } else {
+                          const localTargetX = e.target.x() / (scale * nodeScale);
+                          const localTargetY = -e.target.y() / (scale * nodeScale);
+                          const localLeft = -w / 2;
+                          const localTop = h / 2;
+                          const newW = Math.max(0.2, Math.round((localTargetX - localLeft) * 10) / 10);
+                          const newH = Math.max(0.2, Math.round((localTop - localTargetY) * 10) / 10);
+                          const localDx = localLeft + newW / 2;
+                          const localDy = localTop - newH / 2;
+                          const newX = Math.round((node.x + localDx * Math.cos(rad) - localDy * Math.sin(rad)) * 100) / 100;
+                          const newY = Math.round((node.y + localDx * Math.sin(rad) + localDy * Math.cos(rad)) * 100) / 100;
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            width: newW,
+                            height: newH,
+                          });
+                        }
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        setActiveSnapPreview(null);
+                        if (rot === 0) {
+                          const absPos = e.target.getAbsolutePosition();
+                          const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                          const targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
+                          const targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
+
+                          const leftSci = node.x - w / 2;
+                          const topSci = node.y + h / 2;
+                          const newW = Math.max(0.2, Math.round((targetSciX - leftSci) * 10) / 10);
+                          const newH = Math.max(0.2, Math.round((topSci - targetSciY) * 10) / 10);
+                          const newX = Math.round((leftSci + newW / 2) * 100) / 100;
+                          const newY = Math.round((topSci - newH / 2) * 100) / 100;
+
+                          e.target.position({
+                            x: (newW * scale * nodeScale) / 2,
+                            y: (newH * scale * nodeScale) / 2,
+                          });
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            width: newW,
+                            height: newH,
+                          });
+                        } else {
+                          const localTargetX = e.target.x() / (scale * nodeScale);
+                          const localTargetY = -e.target.y() / (scale * nodeScale);
+                          const localLeft = -w / 2;
+                          const localTop = h / 2;
+                          const newW = Math.max(0.2, Math.round((localTargetX - localLeft) * 10) / 10);
+                          const newH = Math.max(0.2, Math.round((localTop - localTargetY) * 10) / 10);
+                          const localDx = localLeft + newW / 2;
+                          const localDy = localTop - newH / 2;
+                          const newX = Math.round((node.x + localDx * Math.cos(rad) - localDy * Math.sin(rad)) * 100) / 100;
+                          const newY = Math.round((node.y + localDx * Math.sin(rad) + localDy * Math.cos(rad)) * 100) / 100;
+
+                          e.target.position({
+                            x: (newW * scale * nodeScale) / 2,
+                            y: (newH * scale * nodeScale) / 2,
+                          });
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            width: newW,
+                            height: newH,
+                          });
+                        }
+                      }}
+                    />
+                  </Group>
                 );
               })()}
 
