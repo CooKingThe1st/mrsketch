@@ -3120,7 +3120,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Zoom & Canvas Controls Overlay */}
-      <div className="absolute top-4 left-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-700/80 rounded-xl p-2.5 flex items-center gap-3 shadow-xl text-xs font-semibold text-slate-200">
+      <div className="absolute top-4 left-4 z-30 bg-slate-900/90 backdrop-blur border border-slate-700/80 rounded-xl p-2.5 flex items-center gap-3 shadow-xl text-xs font-semibold text-slate-200">
         <span>Scale:</span>
         <button
           onClick={() => setScale((s) => Math.max(10, s - 5))}
@@ -3195,7 +3195,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       </div>
 
       {/* Quick Edit Setting Bar (Second Row right below Scale/Recenter bar) */}
-      <div className="absolute top-16 left-4 z-10 bg-slate-900/95 backdrop-blur border border-slate-700/90 rounded-xl p-2.5 flex items-center gap-3.5 shadow-2xl text-xs text-slate-200">
+      <div className="absolute top-16 left-4 z-30 bg-slate-900/95 backdrop-blur border border-slate-700/90 rounded-xl p-2.5 flex items-center gap-3.5 shadow-2xl text-xs text-slate-200">
         <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider px-1">Quick Edit:</span>
         {(() => {
           const selectedNode = scene.find((n) => n.id === selectedNodeId) || (selectedNodeIds.length > 0 ? scene.find((n) => n.id === selectedNodeIds[0]) : null);
@@ -3854,7 +3854,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         };
 
         return (
-          <div className="absolute top-28 left-4 z-10 bg-slate-900/95 backdrop-blur border border-slate-700/90 rounded-xl p-2 flex items-center gap-3 shadow-2xl text-xs text-slate-200">
+          <div className="absolute top-28 left-4 z-30 bg-slate-900/95 backdrop-blur border border-slate-700/90 rounded-xl p-2 flex items-center gap-3 shadow-2xl text-xs text-slate-200">
             <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider px-1">Transforms:</span>
 
             {isLineFamily ? (
@@ -3956,11 +3956,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           {mode === 'main_scene' ? (
             <>
               {renderExportBounds()}
-              {(() => {
-                const unselected = scene.filter((n) => !selectedNodeIds.includes(n.id) && n.id !== selectedNodeId);
-                const selected = scene.filter((n) => selectedNodeIds.includes(n.id) || n.id === selectedNodeId);
-                return [...unselected, ...selected].map(renderSceneNode);
-              })()}
+              {scene.map(renderSceneNode)}
               {renderInteractiveDrawingPreview()}
               {rightDragStart && rightDragEnd && (
                 <Rect
@@ -4066,9 +4062,14 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
                     const startPointerX = e.clientX;
                     const startPointerY = e.clientY;
+                    const initX = node.x;
+                    const initY = node.y;
                     const initOffX = node.labelOffsetX ?? defaultOffX;
                     const initOffY = node.labelOffsetY ?? defaultOffY;
+                    const targetEl = e.currentTarget as HTMLDivElement;
                     let hasDragged = false;
+                    let lastDx = 0;
+                    let lastDy = 0;
 
                     const handlePointerMove = (moveEvt: PointerEvent) => {
                       const dx = moveEvt.clientX - startPointerX;
@@ -4077,13 +4078,9 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                         hasDragged = true;
                       }
                       if (hasDragged) {
-                        const newOffX = Math.round((initOffX + dx / (scale * nodeScale)) * 100) / 100;
-                        const newOffY = Math.round((initOffY - dy / (scale * nodeScale)) * 100) / 100;
-                        onUpdateNode({
-                          ...node,
-                          labelOffsetX: newOffX,
-                          labelOffsetY: newOffY,
-                        });
+                        lastDx = dx;
+                        lastDy = dy;
+                        targetEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
                       }
                     };
 
@@ -4091,7 +4088,28 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                       window.removeEventListener('pointermove', handlePointerMove);
                       window.removeEventListener('pointerup', handlePointerUp);
 
-                      if (!hasDragged) {
+                      if (hasDragged) {
+                        targetEl.style.transform = 'translate(-50%, -50%)';
+                        if (node.type === 'text') {
+                          const newX = Math.round((initX + lastDx / scale) * 100) / 100;
+                          const newY = Math.round((initY - lastDy / scale) * 100) / 100;
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            labelOffsetX: 0,
+                            labelOffsetY: 0,
+                          });
+                        } else {
+                          const newOffX = Math.round((initOffX + lastDx / (scale * nodeScale)) * 100) / 100;
+                          const newOffY = Math.round((initOffY - lastDy / (scale * nodeScale)) * 100) / 100;
+                          onUpdateNode({
+                            ...node,
+                            labelOffsetX: newOffX,
+                            labelOffsetY: newOffY,
+                          });
+                        }
+                      } else {
                         const now = Date.now();
                         const isDoubleClick = lastLabelClickRef.current.id === node.id && (now - lastLabelClickRef.current.time) < 400;
                         lastLabelClickRef.current = { id: node.id, time: now };

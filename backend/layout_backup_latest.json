@@ -825,7 +825,7 @@
   "plotOptions": {
     "showGrid": true,
     "gridStyle": "-.",
-    "showAxis": true,
+    "showAxis": false,
     "showAxisLabels": true,
     "xLabel": "$x$ [m]",
     "yLabel": "$y$ [m]",
@@ -844,11 +844,31 @@
   },
   "exportBounds": {
     "xMin": -15.3,
-    "xMax": 24.1,
-    "yMin": -25.1,
+    "xMax": 23.9,
+    "yMin": -23.4,
     "yMax": -8.4
   },
   "scene": [
+    {
+      "id": "node_rect_1786655656770_6",
+      "name": "RECT 21_copy",
+      "type": "rect",
+      "x": 11.6,
+      "y": -15.15,
+      "scale": 1,
+      "rotation": 0,
+      "width": 11.6,
+      "height": 3.9,
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "dashdot",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
     {
       "id": "node_robot_1",
       "name": "Robot 1",
@@ -901,26 +921,6 @@
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      }
-    },
-    {
-      "id": "node_rect_1786655656770_6",
-      "name": "RECT 21_copy",
-      "type": "rect",
-      "x": 11.6,
-      "y": -15.4,
-      "scale": 1,
-      "rotation": 0,
-      "width": 11.7,
-      "height": 5.7,
-      "labelOffsetX": 0,
-      "labelOffsetY": 0,
-      "fontSize": 23,
-      "style": {
-        "strokeWidth": 2,
-        "strokeStyle": "dashdot",
         "color": "#000000",
         "fillColor": "#ffffff"
       }
@@ -981,7 +981,7 @@
       "name": "RECT 7_copy",
       "type": "rect",
       "x": 2,
-      "y": -14.6,
+      "y": -14.57,
       "scale": 1,
       "rotation": 0,
       "width": 3,
@@ -1003,14 +1003,14 @@
       "name": "VECTOR 10_copy",
       "type": "vector",
       "x": 3.5,
-      "y": -14.6,
+      "y": -14.57,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
         4.67,
-        0.03
+        0
       ],
       "startBinding": {
         "nodeId": "node_rect_1786655656770_4",
@@ -1113,8 +1113,8 @@
       "points": [
         0,
         0,
-        2.3,
-        0
+        1.95,
+        0.1
       ],
       "startBinding": {
         "nodeId": "node_rect_1786655656770_12",
@@ -1144,9 +1144,9 @@
         -1.4,
         0.1,
         -1.4,
-        -3,
+        -1.5,
         -10.07,
-        -3,
+        -1.5,
         -10.07,
         -0.26
       ],
@@ -1169,12 +1169,12 @@
       "id": "node_rect_1786655656770_15",
       "name": "RECT 18_copy",
       "type": "rect",
-      "x": 20.2,
-      "y": -17.6,
+      "x": 19.6,
+      "y": -16.6,
       "scale": 1,
       "rotation": 0,
-      "width": 2.3,
-      "height": 9.1,
+      "width": 1.8,
+      "height": 6.4,
       "label": "Slider",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
@@ -1191,14 +1191,14 @@
       "id": "node_vector_1786655656770_16",
       "name": "VECTOR 19_copy",
       "type": "vector",
-      "x": 21.35,
-      "y": -17.6,
+      "x": 20.5,
+      "y": -16.6,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        2.4,
+        1.5,
         0
       ],
       "startBinding": {
@@ -1220,14 +1220,14 @@
       "id": "node_rect_1786655656770_17",
       "name": "RECT 22_copy",
       "type": "rect",
-      "x": 14,
-      "y": -24,
+      "x": 13.5,
+      "y": -21.5,
       "scale": 1,
       "rotation": 0,
       "width": 4.3,
       "height": 1.8,
       "label": "Observer",
-      "labelOffsetX": 0,
+      "labelOffsetX": -0.02,
       "labelOffsetY": 0,
       "fontSize": 30,
       "style": {
@@ -1246,14 +1246,14 @@
       "scale": 1,
       "rotation": 0,
       "points": [
-        0,
-        0,
-        -6.49,
-        -6.29
+        -1.3,
+        1,
+        -6.99,
+        -3.79
       ],
       "controlPoint": [
-        0,
-        -6.29
+        -1.3,
+        -3.79
       ],
       "lineShape": "straight",
       "endBinding": {
@@ -1272,18 +1272,18 @@
       "id": "node_super_vector_1786655656770_27",
       "name": "SUPER_VECTOR 31_copy",
       "type": "super_vector",
-      "x": 11.85,
-      "y": -24,
+      "x": 11.35,
+      "y": -21.5,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        -22.75,
-        8.93
+        -22.25,
+        6.43
       ],
       "controlPoint": [
-        -22.75,
+        -22.25,
         0
       ],
       "lineShape": "straight",
@@ -1313,13 +1313,13 @@
       "rotation": 0,
       "points": [
         -2.04,
-        0.01,
+        0.04,
         0.5,
         0.04,
         0.5,
-        -5.49,
-        2.81,
-        -5.49
+        -3.69,
+        2.61,
+        -3.69
       ],
       "lineShape": "straight",
       "megaBindings": {
@@ -1354,7 +1354,9 @@
         "strokeWidth": 2,
         "strokeStyle": "solid",
         "color": "#000000"
-      }
+      },
+      "labelOffsetX": -0.48,
+      "labelOffsetY": 2.48
     },
     {
       "id": "node_text_1786655656770_33",
@@ -1416,7 +1418,7 @@
         0,
         0,
         0,
-        -1.2
+        -1.17
       ],
       "startBinding": {
         "nodeId": "node_rect_1786655656770_3",
@@ -1657,7 +1659,7 @@
         0,
         0,
         1.45,
-        -0.03
+        0
       ],
       "startBinding": {
         "nodeId": "node_rect_1786971330814",
@@ -1692,7 +1694,9 @@
         "strokeWidth": 2,
         "strokeStyle": "solid",
         "color": "#000000"
-      }
+      },
+      "labelOffsetX": 0.42,
+      "labelOffsetY": 1.84
     },
     {
       "id": "node_super_vector_1786974699941",
@@ -2813,8 +2817,8 @@
       "id": "node_rect_1786995341404_0",
       "name": "RECT 21_copy_copy",
       "type": "rect",
-      "x": 13,
-      "y": -20.6,
+      "x": 12.8,
+      "y": -18.8,
       "scale": 1,
       "rotation": 0,
       "width": 9.3,
@@ -2829,6 +2833,39 @@
         "fillColor": "#ffffff"
       },
       "label": "Controller j"
+    },
+    {
+      "id": "node_vector_1787019743030",
+      "name": "VECTOR 78",
+      "type": "vector",
+      "x": 17.45,
+      "y": -18.8,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        1.25,
+        0.07
+      ],
+      "startBinding": {
+        "nodeId": "node_rect_1786995341404_0",
+        "pointKey": "edge_r_int_2"
+      },
+      "endBinding": {
+        "nodeId": "node_rect_1786655656770_15",
+        "pointKey": "edge_l_int_5"
+      },
+      "label": "F_j",
+      "fontSize": 30,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": 0.67,
+      "labelOffsetY": 0.47
     }
   ]
 }
