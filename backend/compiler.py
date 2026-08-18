@@ -143,44 +143,104 @@ def configure_matplotlib_latex(macros_dict: dict, font_size: int = 12, fast_mode
 def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float, float, float]:
     nx, ny = node.x, node.y
     scale = getattr(node, 'scale', 1.0) or 1.0
+    rot = getattr(node, 'rotation', 0.0) or 0.0
+    rad = math.radians(rot)
+    cos_r = math.cos(rad)
+    sin_r = math.sin(rad)
+
     xs = [nx]
     ys = [ny]
 
     if node.type in ('rect', 'obstacle'):
         w = (getattr(node, 'width', 3.0) or 3.0) * scale
         h = (getattr(node, 'height', 2.0) or 2.0) * scale
-        xs.extend([nx - w / 2.0, nx + w / 2.0])
-        ys.extend([ny - h / 2.0, ny + h / 2.0])
+        corners = [
+            (-w / 2.0, -h / 2.0),
+            (w / 2.0, -h / 2.0),
+            (w / 2.0, h / 2.0),
+            (-w / 2.0, h / 2.0),
+        ]
+        for cx, cy in corners:
+            rx = nx + (cx * cos_r - cy * sin_r)
+            ry = ny + (cx * sin_r + cy * cos_r)
+            xs.append(rx)
+            ys.append(ry)
     elif node.type == 'circle':
         r = (getattr(node, 'radius', 1.5) or 1.5) * scale
         xs.extend([nx - r, nx + r])
         ys.extend([ny - r, ny + r])
-    elif node.type in ('triangle', 'diamond'):
+    elif node.type == 'triangle':
+        w = (getattr(node, 'width', 3.0) or 3.0) * scale
+        tri_type = getattr(node, 'triangleType', 'right_isosceles') or 'right_isosceles'
+        if tri_type == 'equilateral':
+            h = w * 0.866
+            pts = [(0, h * 0.66), (-w/2, -h * 0.33), (w/2, -h * 0.33)]
+        else:
+            pts = [(-w/3, 2*w/3), (-w/3, -w/3), (2*w/3, -w/3)]
+        for cx, cy in pts:
+            rx = nx + (cx * cos_r - cy * sin_r)
+            ry = ny + (cx * sin_r + cy * cos_r)
+            xs.append(rx)
+            ys.append(ry)
+    elif node.type == 'diamond':
         w = (getattr(node, 'width', 3.0) or 3.0) * scale
         h = (getattr(node, 'height', 2.0) or 2.0) * scale
-        xs.extend([nx - w / 2.0, nx + w / 2.0])
-        ys.extend([ny - h / 2.0, ny + h / 2.0])
+        pts = [(0, h/2), (w/2, 0), (0, -h/2), (-w/2, 0)]
+        for cx, cy in pts:
+            rx = nx + (cx * cos_r - cy * sin_r)
+            ry = ny + (cx * sin_r + cy * cos_r)
+            xs.append(rx)
+            ys.append(ry)
     elif node.type == 'alias' and getattr(node, 'definitionId', None) and node.definitionId in definitions:
         def_obj = definitions[node.definitionId]
         prims = getattr(def_obj, 'primitives', []) or []
         if prims:
             for prim in prims:
                 cfg = prim.config if hasattr(prim, 'config') else (prim.get('config', {}) if isinstance(prim, dict) else {})
-                px = nx + (getattr(cfg, 'x', 0.0) or 0.0) * scale
-                py = ny + (getattr(cfg, 'y', 0.0) or 0.0) * scale
                 ptype = getattr(prim, 'type', 'circle') if hasattr(prim, 'type') else (prim.get('type', 'circle') if isinstance(prim, dict) else 'circle')
+                prim_x = getattr(cfg, 'x', 0.0) if getattr(cfg, 'x', None) is not None else 0.0
+                prim_y = getattr(cfg, 'y', 0.0) if getattr(cfg, 'y', None) is not None else 0.0
+                ox = (prim_x / 40.0) * scale
+                oy = (prim_y / 40.0) * scale
+
                 if ptype == 'circle':
-                    r = (getattr(cfg, 'radius', 1.5) or 1.5) * scale
-                    xs.extend([px - r, px + r])
-                    ys.extend([py - r, py + r])
+                    r_px = getattr(cfg, 'radius', 25.0) if getattr(cfg, 'radius', None) is not None else 25.0
+                    r = (r_px / 40.0) * scale
+                    rx = nx + (ox * cos_r - oy * sin_r)
+                    ry = ny + (ox * sin_r + oy * cos_r)
+                    xs.extend([rx - r, rx + r])
+                    ys.extend([ry - r, ry + r])
                 elif ptype == 'rect':
-                    w = (getattr(cfg, 'width', 3.0) or 3.0) * scale
-                    h = (getattr(cfg, 'height', 2.0) or 2.0) * scale
-                    xs.extend([px - w / 2.0, px + w / 2.0])
-                    ys.extend([py - h / 2.0, py + h / 2.0])
+                    w_px = getattr(cfg, 'width', 30.0) if getattr(cfg, 'width', None) is not None else 30.0
+                    h_px = getattr(cfg, 'height', 30.0) if getattr(cfg, 'height', None) is not None else 30.0
+                    w = (w_px / 40.0) * scale
+                    h = (h_px / 40.0) * scale
+                    rx = nx + (ox * cos_r - oy * sin_r)
+                    ry = ny + (ox * sin_r + oy * cos_r)
+                    max_ext = math.hypot(w / 2.0, h / 2.0)
+                    xs.extend([rx - max_ext, rx + max_ext])
+                    ys.extend([ry - max_ext, ry + max_ext])
+                elif ptype == 'poly' and getattr(cfg, 'vertices', None):
+                    for vx, vy in cfg.vertices:
+                        sx = ox + (vx / 40.0) * scale
+                        sy = oy + (vy / 40.0) * scale
+                        rx = nx + (sx * cos_r - sy * sin_r)
+                        ry = ny + (sx * sin_r + sy * cos_r)
+                        xs.append(rx)
+                        ys.append(ry)
+                elif getattr(cfg, 'points', None):
+                    x1, y1, x2, y2 = [(p / 40.0) * scale for p in cfg.points]
+                    rx1 = nx + ((ox + x1) * cos_r - (oy + y1) * sin_r)
+                    ry1 = ny + ((ox + x1) * sin_r + (oy + y1) * cos_r)
+                    rx2 = nx + ((ox + x2) * cos_r - (oy + y2) * sin_r)
+                    ry2 = ny + ((ox + x2) * sin_r + (oy + y2) * cos_r)
+                    xs.extend([rx1, rx2])
+                    ys.extend([ry1, ry2])
                 else:
-                    xs.extend([px - 1.0, px + 1.0])
-                    ys.extend([py - 1.0, py + 1.0])
+                    rx = nx + (ox * cos_r - oy * sin_r)
+                    ry = ny + (ox * sin_r + oy * cos_r)
+                    xs.extend([rx - 0.5 * scale, rx + 0.5 * scale])
+                    ys.extend([ry - 0.5 * scale, ry + 0.5 * scale])
         else:
             xs.extend([nx - 1.0, nx + 1.0])
             ys.extend([ny - 1.0, ny + 1.0])
@@ -188,15 +248,32 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
         pts = getattr(node, 'points', None)
         if pts:
             for i in range(0, len(pts) - 1, 2):
-                xs.append(nx + pts[i] * scale)
-                ys.append(ny + pts[i + 1] * scale)
+                dx = pts[i] * scale
+                dy = pts[i + 1] * scale
+                rx = nx + (dx * cos_r - dy * sin_r)
+                ry = ny + (dx * sin_r + dy * cos_r)
+                xs.append(rx)
+                ys.append(ry)
         cp = getattr(node, 'controlPoint', None)
         if cp and len(cp) >= 2:
-            xs.append(nx + cp[0] * scale)
-            ys.append(ny + cp[1] * scale)
+            dx = cp[0] * scale
+            dy = cp[1] * scale
+            rx = nx + (dx * cos_r - dy * sin_r)
+            ry = ny + (dx * sin_r + dy * cos_r)
+            xs.append(rx)
+            ys.append(ry)
     else:
         xs.extend([nx - 0.5, nx + 0.5])
         ys.extend([ny - 0.5, ny + 0.5])
+
+    # Include label annotation offset if present
+    if getattr(node, 'label', None) and node.label.strip():
+        is_shape = node.type in ('rect', 'circle', 'triangle', 'diamond', 'obstacle', 'text', 'alias')
+        default_off = 0.0 if is_shape else 0.3
+        lox = (getattr(node, 'labelOffsetX', default_off) if getattr(node, 'labelOffsetX', None) is not None else default_off) * scale
+        loy = (getattr(node, 'labelOffsetY', default_off) if getattr(node, 'labelOffsetY', None) is not None else default_off) * scale
+        xs.extend([nx + lox - 0.3, nx + lox + 0.3])
+        ys.extend([ny + loy - 0.3, ny + loy + 0.3])
 
     return (min(xs), min(ys), max(xs), max(ys))
 

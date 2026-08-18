@@ -4,50 +4,88 @@ export function computeNodeAABB(
   node: SceneNode,
   definitions: Record<string, RobotDefinition>
 ): [number, number, number, number] {
-  const xs: number[] = [node.x];
-  const ys: number[] = [node.y];
+  const nx = node.x;
+  const ny = node.y;
+  const scale = node.scale || 1.0;
+  const rad = (((node.rotation || 0)) * Math.PI) / 180;
+  const cosR = Math.cos(rad);
+  const sinR = Math.sin(rad);
+
+  const xs: number[] = [nx];
+  const ys: number[] = [ny];
 
   const type = node.type;
 
-  if (type === 'rect' || type === 'obstacle' || type === 'triangle' || type === 'diamond') {
-    const w = node.width || 3;
-    const h = node.height || 2;
-    xs.push(node.x - w / 2, node.x + w / 2);
-    ys.push(node.y - h / 2, node.y + h / 2);
+  if (type === 'rect' || type === 'obstacle') {
+    const w = (node.width || 3) * scale;
+    const h = (node.height || 2) * scale;
+    const corners = [
+      [-w / 2, -h / 2],
+      [w / 2, -h / 2],
+      [w / 2, h / 2],
+      [-w / 2, h / 2],
+    ];
+    corners.forEach(([cx, cy]) => {
+      xs.push(nx + (cx * cosR - cy * sinR));
+      ys.push(ny + (cx * sinR + cy * cosR));
+    });
   } else if (type === 'circle') {
-    const r = node.radius || 1.5;
-    xs.push(node.x - r, node.x + r);
-    ys.push(node.y - r, node.y + r);
+    const r = (node.radius || 1.5) * scale;
+    xs.push(nx - r, nx + r);
+    ys.push(ny - r, ny + r);
+  } else if (type === 'triangle') {
+    const w = (node.width || 3) * scale;
+    const triType = node.triangleType || 'right_isosceles';
+    const pts = triType === 'equilateral'
+      ? [[0, (w * 0.866) * 0.66], [-w / 2, -(w * 0.866) * 0.33], [w / 2, -(w * 0.866) * 0.33]]
+      : [[-w / 3, (2 * w) / 3], [-w / 3, -w / 3], [(2 * w) / 3, -w / 3]];
+    pts.forEach(([cx, cy]) => {
+      xs.push(nx + (cx * cosR - cy * sinR));
+      ys.push(ny + (cx * sinR + cy * cosR));
+    });
+  } else if (type === 'diamond') {
+    const w = (node.width || 3) * scale;
+    const h = (node.height || 2) * scale;
+    const pts = [[0, h / 2], [w / 2, 0], [0, -h / 2], [-w / 2, 0]];
+    pts.forEach(([cx, cy]) => {
+      xs.push(nx + (cx * cosR - cy * sinR));
+      ys.push(ny + (cx * sinR + cy * cosR));
+    });
   } else if (type === 'vector' || type === 'line' || type === 'super_vector' || type === 'super_line') {
     const pts = node.points || [0, 0, 3, 2];
     if (pts.length >= 4) {
-      xs.push(node.x + pts[0], node.x + pts[2]);
-      ys.push(node.y + pts[1], node.y + pts[3]);
+      const dx1 = pts[0] * scale;
+      const dy1 = pts[1] * scale;
+      const dx2 = pts[2] * scale;
+      const dy2 = pts[3] * scale;
+      xs.push(nx + (dx1 * cosR - dy1 * sinR), nx + (dx2 * cosR - dy2 * sinR));
+      ys.push(ny + (dx1 * sinR + dy1 * cosR), ny + (dx2 * sinR + dy2 * cosR));
     }
     if (node.controlPoint && node.controlPoint.length >= 2) {
-      xs.push(node.x + node.controlPoint[0]);
-      ys.push(node.y + node.controlPoint[1]);
+      const cpx = node.controlPoint[0] * scale;
+      const cpy = node.controlPoint[1] * scale;
+      xs.push(nx + (cpx * cosR - cpy * sinR));
+      ys.push(ny + (cpx * sinR + cpy * cosR));
     }
   } else if (type === 'mega_line' || type === 'mega_vector') {
     const pts = node.points || [0, 0, 3, 2];
     for (let i = 0; i < pts.length - 1; i += 2) {
-      xs.push(node.x + pts[i]);
-      ys.push(node.y + pts[i + 1]);
+      const dx = pts[i] * scale;
+      const dy = pts[i + 1] * scale;
+      xs.push(nx + (dx * cosR - dy * sinR));
+      ys.push(ny + (dx * sinR + dy * cosR));
     }
   } else if (type === 'alias' && node.definitionId && definitions[node.definitionId]) {
     const def = definitions[node.definitionId];
-    const nodeScale = node.scale || 1.0;
-    const rad = ((node.rotation || 0) * Math.PI) / 180;
-    const cosR = Math.cos(rad);
-    const sinR = Math.sin(rad);
+    const nodeScale = scale;
 
     if (def.primitives && def.primitives.length > 0) {
       def.primitives.forEach((prim) => {
         const cfg = prim.config || {};
         const ox = ((cfg.x || 0) / 40.0) * nodeScale;
         const oy = ((cfg.y || 0) / 40.0) * nodeScale;
-        const rx = node.x + (ox * cosR - oy * sinR);
-        const ry = node.y + (ox * sinR + oy * cosR);
+        const rx = nx + (ox * cosR - oy * sinR);
+        const ry = ny + (ox * sinR + oy * cosR);
 
         if (prim.type === 'circle') {
           const r = ((cfg.radius !== undefined ? cfg.radius : 25.0) / 40.0) * nodeScale;
@@ -59,19 +97,39 @@ export function computeNodeAABB(
           const maxExtent = Math.hypot(w / 2, h / 2);
           xs.push(rx - maxExtent, rx + maxExtent);
           ys.push(ry - maxExtent, ry + maxExtent);
+        } else if (prim.type === 'poly' && cfg.vertices) {
+          cfg.vertices.forEach(([vx, vy]) => {
+            const sx = ox + (vx / 40.0) * nodeScale;
+            const sy = oy + (vy / 40.0) * nodeScale;
+            xs.push(nx + (sx * cosR - sy * sinR));
+            ys.push(ny + (sx * sinR + sy * cosR));
+          });
+        } else if (cfg.points) {
+          const [x1, y1, x2, y2] = cfg.points.map((p) => (p / 40.0) * nodeScale);
+          xs.push(nx + ((ox + x1) * cosR - (oy + y1) * sinR), nx + ((ox + x2) * cosR - (oy + y2) * sinR));
+          ys.push(ny + ((ox + x1) * sinR + (oy + y1) * cosR), ny + ((ox + x2) * sinR + (oy + y2) * cosR));
         } else {
           xs.push(rx - 0.5 * nodeScale, rx + 0.5 * nodeScale);
           ys.push(ry - 0.5 * nodeScale, ry + 0.5 * nodeScale);
         }
       });
     } else {
-      xs.push(node.x - 1.0, node.x + 1.0);
-      ys.push(node.y - 1.0, node.y + 1.0);
+      xs.push(nx - 1.0, nx + 1.0);
+      ys.push(ny - 1.0, ny + 1.0);
     }
   } else {
     // text or default
-    xs.push(node.x - 1, node.x + 1);
-    ys.push(node.y - 1, node.y + 1);
+    xs.push(nx - 0.5, nx + 0.5);
+    ys.push(ny - 0.5, ny + 0.5);
+  }
+
+  if (node.label && node.label.trim()) {
+    const isShape = type === 'rect' || type === 'circle' || type === 'triangle' || type === 'diamond' || type === 'obstacle' || type === 'text' || type === 'alias';
+    const defaultOff = isShape ? 0.0 : 0.3;
+    const lox = (node.labelOffsetX ?? defaultOff) * scale;
+    const loy = (node.labelOffsetY ?? defaultOff) * scale;
+    xs.push(nx + lox - 0.3, nx + lox + 0.3);
+    ys.push(ny + loy - 0.3, ny + loy + 0.3);
   }
 
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
