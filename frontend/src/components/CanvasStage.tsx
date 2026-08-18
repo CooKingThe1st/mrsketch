@@ -822,8 +822,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       }
     }
 
-    // Strict double click check for quick text entity creation (ONLY allowed in 'select' mode)
-    if (drawingMode === 'select' && e.evt.button === 0) {
+    // Strict double click check for quick text entity creation (ONLY allowed in 'select' mode on main_scene)
+    if (mode === 'main_scene' && drawingMode === 'select' && e.evt.button === 0) {
       const targetName = typeof e.target.name === 'function' ? e.target.name() : '';
       const isBg = e.target === stage || targetName === 'bg_rect' || targetName === 'grid_layer';
       if (isBg) {
@@ -3641,8 +3641,9 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       </div>
 
       {/* Quick Edit Setting Bar (Second Row right below Scale/Recenter bar) */}
-      <div className="absolute top-16 left-4 z-30 bg-slate-900/95 backdrop-blur border border-slate-700/90 rounded-xl p-2.5 flex items-center gap-3.5 shadow-2xl text-xs text-slate-200">
-        <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider px-1">Quick Edit:</span>
+      {mode === 'main_scene' && (
+        <div className="absolute top-16 left-4 z-30 bg-slate-900/95 backdrop-blur border border-slate-700/90 rounded-xl p-2.5 flex items-center gap-3.5 shadow-2xl text-xs text-slate-200">
+          <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider px-1">Quick Edit:</span>
         {(() => {
           const selectedNode = scene.find((n) => n.id === selectedNodeId) || (selectedNodeIds.length > 0 ? scene.find((n) => n.id === selectedNodeIds[0]) : null);
           if (!selectedNode) {
@@ -3925,10 +3926,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             </>
           );
         })()}
-      </div>
+        </div>
+      )}
 
       {/* Advanced Transforms Toolbar Row (Second Row right below Quick Edit bar) */}
-      {(() => {
+      {mode === 'main_scene' && (() => {
         const selectedNode = scene.find((n) => n.id === selectedNodeId) || (selectedNodeIds.length > 0 ? scene.find((n) => n.id === selectedNodeIds[0]) : null);
         if (!selectedNode) return null;
 
@@ -4457,7 +4459,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       </Stage>
 
       {/* KaTeX Live Math Mode HTML Overlay */}
-      {(plotOptions?.renderMathOnCanvas ?? true) && (
+      {mode === 'main_scene' && (plotOptions?.renderMathOnCanvas ?? true) && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10">
           {scene
             .filter((node) => node.label && node.label.trim())
@@ -4606,7 +4608,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       )}
 
       {/* Double Click Floating Label Editor Popover */}
-      {editingLabelNodeId && (() => {
+      {mode === 'main_scene' && editingLabelNodeId && (() => {
         const targetNode = scene.find((n) => n.id === editingLabelNodeId);
         if (!targetNode) return null;
         const isShape = targetNode.type === 'rect' || targetNode.type === 'circle' || targetNode.type === 'triangle' || targetNode.type === 'diamond' || targetNode.type === 'obstacle' || targetNode.type === 'text' || targetNode.type === 'alias';
@@ -4689,7 +4691,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       })()}
 
       {/* Right Double Click Quick Creation Floating Popover Menu */}
-      {quickMenuPos && (
+      {mode === 'main_scene' && quickMenuPos && (
         <div
           className="absolute z-50 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl shadow-2xl p-3 w-[520px] text-xs text-slate-200"
           style={{

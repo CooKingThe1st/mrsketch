@@ -843,25 +843,25 @@
     "renderMathOnCanvas": true
   },
   "exportBounds": {
-    "xMin": -15.1,
-    "xMax": 22.5,
-    "yMin": -24.3,
-    "yMax": -8.7
+    "xMin": -14.4,
+    "xMax": 22.6,
+    "yMin": -22.8,
+    "yMax": -9.3
   },
   "scene": [
     {
       "id": "node_rect_1786655656770_6",
       "name": "RECT 21_copy",
       "type": "rect",
-      "x": 11.6,
-      "y": -14.62,
+      "x": 11.7,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
-      "width": 11.5,
-      "height": 3,
+      "width": 11.9,
+      "height": 2.8,
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "dashdot",
@@ -891,7 +891,7 @@
       "name": "Robot 2",
       "type": "alias",
       "definitionId": "root_robot",
-      "x": 2.3,
+      "x": 2.2,
       "y": -3.2,
       "scale": 1.2,
       "rotation": -45,
@@ -908,7 +908,7 @@
       "name": "CIRCLE 3_copy",
       "type": "circle",
       "x": -10.9,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "width": 3,
@@ -935,15 +935,15 @@
       "rotation": 0,
       "points": [
         -0.1,
-        -0.2,
+        -0.23,
         1.91,
-        -0.2
+        -0.23
       ],
       "endBinding": {
         "nodeId": "node_circle_1786655656770_0",
         "pointKey": "circle_p8"
       },
-      "label": "Desired \nq_{o,d}",
+      "label": "Desired \nq_s",
       "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
@@ -967,7 +967,7 @@
       "label": "Configuration\nSynthesizer",
       "labelOffsetX": 0.09,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -981,7 +981,7 @@
       "name": "RECT 7_copy",
       "type": "rect",
       "x": 2,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "width": 3,
@@ -989,7 +989,7 @@
       "label": "Force \nDistributer",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -1003,7 +1003,7 @@
       "name": "VECTOR 10_copy",
       "type": "vector",
       "x": 3.5,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "points": [
@@ -1020,7 +1020,7 @@
         "nodeId": "node_circle_1786655656770_8",
         "pointKey": "circle_p8"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1033,7 +1033,7 @@
       "name": "CIRCLE 3_copy_copy",
       "type": "circle",
       "x": 8.57,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "width": 3,
@@ -1042,7 +1042,7 @@
       "label": "-",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -1055,7 +1055,7 @@
       "name": "VECTOR 14_copy",
       "type": "vector",
       "x": 13.23,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "points": [
@@ -1072,7 +1072,7 @@
         "nodeId": "node_rect_1786655656770_12",
         "pointKey": "edge_l_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1085,7 +1085,7 @@
       "name": "RECT 15_copy",
       "type": "rect",
       "x": 15.65,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "width": 2.2,
@@ -1093,7 +1093,7 @@
       "label": "Robot \nActuator",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -1107,7 +1107,7 @@
       "name": "VECTOR 16_copy",
       "type": "vector",
       "x": 16.75,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "points": [
@@ -1120,7 +1120,7 @@
         "nodeId": "node_rect_1786655656770_12",
         "pointKey": "edge_r_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1144,7 +1144,7 @@
         -8.63,
         -1.3,
         -8.63,
-        -0.42
+        -0.45
       ],
       "lineShape": "straight",
       "megaBindings": {
@@ -1153,7 +1153,7 @@
           "pointKey": "circle_p12"
         }
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1174,7 +1174,7 @@
       "label": "Slider",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -1201,8 +1201,8 @@
         "nodeId": "node_rect_1786655656770_15",
         "pointKey": "edge_r_int_3"
       },
-      "label": "q_o",
-      "fontSize": 23,
+      "label": "q_s",
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1256,7 +1256,7 @@
         "nodeId": "node_rect_1786655656770_17",
         "pointKey": "edge_r_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1276,7 +1276,7 @@
         0,
         0,
         -22.25,
-        5.58
+        5.55
       ],
       "controlPoint": [
         -22.25,
@@ -1309,9 +1309,9 @@
       "rotation": 0,
       "points": [
         -2.04,
-        -0.01,
+        -0.04,
         -0.7,
-        -0.01,
+        -0.04,
         -0.7,
         -2.89,
         2.66,
@@ -1328,7 +1328,7 @@
           "pointKey": "edge_l_int_2"
         }
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1344,7 +1344,7 @@
       "y": -19.83,
       "scale": 1,
       "rotation": 0,
-      "label": "Measured \nq_{o}",
+      "label": "Measured \nq_s",
       "fontSize": 30,
       "style": {
         "strokeWidth": 2,
@@ -1362,7 +1362,7 @@
       "y": -13.95,
       "scale": 1,
       "rotation": 0,
-      "label": "e_{o}",
+      "label": "e_s",
       "fontSize": 30,
       "style": {
         "strokeWidth": 2,
@@ -1390,8 +1390,8 @@
       "id": "node_text_1786655656770_37",
       "name": "TEXT 40_copy",
       "type": "text",
-      "x": 17.92,
-      "y": -14.06,
+      "x": 17.21,
+      "y": -14.15,
       "scale": 1,
       "rotation": 0,
       "label": "F_i",
@@ -1416,7 +1416,7 @@
         0,
         0,
         0,
-        -1.47
+        -1.5
       ],
       "startBinding": {
         "nodeId": "node_rect_1786655656770_3",
@@ -1442,7 +1442,7 @@
       "name": "VECTOR 81",
       "type": "vector",
       "x": -10.4,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "points": [
@@ -1491,7 +1491,7 @@
       "name": "RECT 84",
       "type": "rect",
       "x": 12.08,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "width": 2.3,
@@ -1499,7 +1499,7 @@
       "label": "Force\nController",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -1519,7 +1519,7 @@
       "points": [
         0,
         0,
-        -6.3,
+        -6.4,
         0.6
       ],
       "endBinding": {
@@ -1539,7 +1539,7 @@
       "name": "VECTOR 79",
       "type": "vector",
       "x": 8.97,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "points": [
@@ -1572,7 +1572,7 @@
       "name": "RECT 7_copy_copy",
       "type": "rect",
       "x": -7.2,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "width": 3,
@@ -1593,15 +1593,15 @@
       "id": "node_rect_1786971330814",
       "name": "RECT 80",
       "type": "rect",
-      "x": -2.3,
-      "y": -14.62,
+      "x": -2.25,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
-      "width": 2.7,
-      "height": 1.7,
+      "width": 2.8,
+      "height": 1.8,
       "label": "Force \nEstimation",
-      "labelOffsetX": 0.02,
-      "labelOffsetY": -0.01,
+      "labelOffsetX": -0.05,
+      "labelOffsetY": -0.02,
       "fontSize": 30,
       "style": {
         "strokeWidth": 2,
@@ -1616,7 +1616,7 @@
       "name": "VECTOR 81",
       "type": "vector",
       "x": -5.7,
-      "y": -14.62,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "points": [
@@ -1640,7 +1640,7 @@
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "label": "Desired\n\\dot{q_o}",
+      "label": "Desired\n\\dot{q_s}",
       "labelOffsetX": 1.13,
       "labelOffsetY": 0.88,
       "textAlign": "center"
@@ -1649,14 +1649,14 @@
       "id": "node_vector_1786971787302",
       "name": "VECTOR 82",
       "type": "vector",
-      "x": -0.95,
-      "y": -14.62,
+      "x": -0.85,
+      "y": -14.65,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        1.45,
+        1.35,
         0
       ],
       "startBinding": {
@@ -1675,8 +1675,8 @@
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "labelOffsetX": -0.54,
-      "labelOffsetY": 2.98
+      "labelOffsetX": -0.81,
+      "labelOffsetY": 2.91
     },
     {
       "id": "node_text_1786972630410_9",
@@ -1700,18 +1700,18 @@
       "id": "node_super_vector_1786974699941",
       "name": "SUPER_VECTOR 45",
       "type": "super_vector",
-      "x": -0.8,
+      "x": -0.5,
       "y": -14.6,
       "scale": 1,
       "rotation": 0,
       "points": [
-        0.6,
         0,
-        1.05,
+        0,
+        0.75,
         3.2
       ],
       "controlPoint": [
-        0.6,
+        0,
         3.2
       ],
       "lineShape": "straight",
@@ -1741,7 +1741,7 @@
       "label": "-",
       "labelOffsetX": 0.02,
       "labelOffsetY": -0.01,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -1754,14 +1754,14 @@
       "name": "RECT 21_copy_copy",
       "type": "rect",
       "x": 12.2,
-      "y": -35.58,
+      "y": -35.6,
       "scale": 1,
       "rotation": 0,
       "width": 12.1,
       "height": 4,
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "dashdot",
@@ -1787,23 +1787,23 @@
         "nodeId": "node_circle_1786980877193_1",
         "pointKey": "circle_p8"
       },
-      "label": "Desired \nq_{o,d}",
-      "fontSize": 23,
+      "label": "Desired \nq_s",
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "labelOffsetX": 0.12,
-      "labelOffsetY": 0.72
+      "labelOffsetX": 0.75,
+      "labelOffsetY": 0.63
     },
     {
       "id": "node_rect_1786980877193_4",
       "name": "RECT 6_copy_copy",
       "type": "rect",
-      "x": 3,
-      "y": -35.58,
+      "x": 3.6,
+      "y": -35.6,
       "scale": 1,
       "rotation": 0,
       "width": 3,
@@ -1833,7 +1833,7 @@
       "label": "-",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -1845,14 +1845,14 @@
       "id": "node_vector_1786980877193_8",
       "name": "VECTOR 14_copy_copy",
       "type": "vector",
-      "x": 13.35,
+      "x": 13.39,
       "y": -35.58,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        1.55,
+        1.51,
         0
       ],
       "startBinding": {
@@ -1863,7 +1863,7 @@
         "nodeId": "node_rect_1786980877193_9",
         "pointKey": "edge_l_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1884,7 +1884,7 @@
       "label": "Robot \nActuator",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -1903,18 +1903,14 @@
       "points": [
         0,
         0,
-        2.75,
-        0.21
+        2.7,
+        0
       ],
       "startBinding": {
         "nodeId": "node_rect_1786980877193_9",
         "pointKey": "edge_r_int_2"
       },
-      "endBinding": {
-        "nodeId": "node_rect_1786980877193_12",
-        "pointKey": "edge_l_int_1"
-      },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1926,30 +1922,30 @@
       "id": "node_rect_1786980877193_12",
       "name": "RECT 18_copy_copy",
       "type": "rect",
-      "x": 21.2,
+      "x": 20.8,
       "y": -38.4,
       "scale": 1,
       "rotation": 0,
-      "width": 2.3,
+      "width": 1.5,
       "height": 9.1,
       "label": "Slider",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "edgeSnapPoints": 5
+      "edgeSnapPoints": 6
     },
     {
       "id": "node_vector_1786980877193_13",
       "name": "VECTOR 19_copy_copy",
       "type": "vector",
-      "x": 22.35,
-      "y": -38.4,
+      "x": 21.55,
+      "y": -39.05,
       "scale": 1,
       "rotation": 0,
       "points": [
@@ -1962,8 +1958,8 @@
         "nodeId": "node_rect_1786980877193_12",
         "pointKey": "edge_r_int_3"
       },
-      "label": "q_o",
-      "fontSize": 23,
+      "label": "q_s",
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -1977,16 +1973,16 @@
       "id": "node_rect_1786980877193_14",
       "name": "RECT 22_copy_copy",
       "type": "rect",
-      "x": 14.8,
-      "y": -47.4,
+      "x": 14.4,
+      "y": -46.4,
       "scale": 1,
       "rotation": 0,
       "width": 4.3,
-      "height": 1.8,
+      "height": 1,
       "label": "Observer",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "dashed",
@@ -1998,26 +1994,26 @@
       "id": "node_super_vector_1786980877193_15",
       "name": "SUPER_VECTOR 30_copy_copy",
       "type": "super_vector",
-      "x": 23.94,
-      "y": -36.01,
+      "x": 22.6,
+      "y": -39,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
-        -2.5,
-        -6.99,
-        -11.39
+        0,
+        -6.05,
+        -7.4
       ],
       "controlPoint": [
         0,
-        -11.39
+        -7.4
       ],
       "lineShape": "straight",
       "endBinding": {
         "nodeId": "node_rect_1786980877193_14",
         "pointKey": "edge_r_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2029,18 +2025,18 @@
       "id": "node_super_vector_1786980877193_16",
       "name": "SUPER_VECTOR 31_copy_copy",
       "type": "super_vector",
-      "x": 12.65,
-      "y": -47.4,
+      "x": 12.25,
+      "y": -46.4,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        -16.55,
-        13.7
+        -16.15,
+        12.7
       ],
       "controlPoint": [
-        -16.55,
+        -16.15,
         0
       ],
       "lineShape": "straight",
@@ -2052,7 +2048,7 @@
         "nodeId": "node_circle_1786980877193_1",
         "pointKey": "circle_p12"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2064,17 +2060,19 @@
       "id": "node_text_1786980877193_18",
       "name": "TEXT 33_copy_copy",
       "type": "text",
-      "x": -2.19,
-      "y": -46.79,
+      "x": -2.22,
+      "y": -45.37,
       "scale": 1,
       "rotation": 0,
-      "label": "Measured \nq_{o}",
-      "fontSize": 23,
+      "label": "Measured \nq_s",
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
         "color": "#000000"
-      }
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
     },
     {
       "id": "node_text_1786980877193_19",
@@ -2084,8 +2082,8 @@
       "y": -32.67,
       "scale": 1,
       "rotation": 0,
-      "label": "e_{o}",
-      "fontSize": 23,
+      "label": "e_s",
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -2146,7 +2144,7 @@
         "nodeId": "node_rect_1786980877193_27",
         "pointKey": "edge_l_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2158,7 +2156,7 @@
       "id": "node_rect_1786980877193_25",
       "name": "RECT 84_copy",
       "type": "rect",
-      "x": 12.2,
+      "x": 12.24,
       "y": -35.58,
       "scale": 1,
       "rotation": 0,
@@ -2167,7 +2165,7 @@
       "label": "Velocity\nController",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -2186,7 +2184,7 @@
       "points": [
         0,
         0,
-        1.85,
+        1.89,
         0
       ],
       "startBinding": {
@@ -2221,7 +2219,7 @@
       "label": "Velocity\nController",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -2233,21 +2231,21 @@
       "id": "node_vector_1786986808260",
       "name": "VECTOR 83",
       "type": "vector",
-      "x": 4.43,
-      "y": -33.75,
+      "x": 3.6,
+      "y": -33.2,
       "scale": 1,
       "rotation": 0,
       "points": [
-        -1.43,
-        0.8,
-        -1.43,
-        -0.83
+        0,
+        0,
+        0,
+        -1.4
       ],
       "endBinding": {
         "nodeId": "node_rect_1786980877193_4",
         "pointKey": "edge_b_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2259,15 +2257,15 @@
       "id": "node_vector_1786986911414",
       "name": "VECTOR 70",
       "type": "vector",
-      "x": 4.5,
-      "y": -35.58,
+      "x": 5.1,
+      "y": -35.6,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        3.9,
-        0
+        3.3,
+        0.02
       ],
       "startBinding": {
         "nodeId": "node_rect_1786980877193_4",
@@ -2285,8 +2283,8 @@
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "labelOffsetX": 1.92,
-      "labelOffsetY": 0.84
+      "labelOffsetX": 2.1,
+      "labelOffsetY": 0.81
     },
     {
       "id": "node_super_vector_1786986919157",
@@ -2299,11 +2297,11 @@
       "points": [
         0,
         0,
-        10.7,
+        10.74,
         -1.73
       ],
       "controlPoint": [
-        10.7,
+        10.74,
         0
       ],
       "lineShape": "straight",
@@ -2315,16 +2313,16 @@
         "nodeId": "node_rect_1786980877193_25",
         "pointKey": "edge_b_int_2"
       },
-      "label": "Desired\n\\dot{q_o}",
-      "fontSize": 23,
+      "label": "Desired\n\\dot{q_s}",
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "labelOffsetX": 0.98,
-      "labelOffsetY": 0.78
+      "labelOffsetX": 1.36,
+      "labelOffsetY": 1.02
     },
     {
       "id": "node_mega_vector_1786987279201",
@@ -2372,7 +2370,7 @@
       "label": "Mux",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -2384,26 +2382,26 @@
       "id": "node_super_vector_1786987443470",
       "name": "SUPER_VECTOR 62",
       "type": "super_vector",
-      "x": 16.9,
-      "y": -37.3,
+      "x": 9.5,
+      "y": -35.6,
       "scale": 1,
       "rotation": 0,
       "points": [
-        -7.4,
-        1.8,
-        -6.85,
-        -1.85
+        0,
+        0,
+        0.55,
+        -3.55
       ],
       "controlPoint": [
-        -7.4,
-        -1.85
+        0,
+        -3.55
       ],
       "lineShape": "straight",
       "endBinding": {
         "nodeId": "node_rect_1786987397864",
         "pointKey": "edge_l_int_1"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2415,15 +2413,15 @@
       "id": "node_rect_1786987816358_0",
       "name": "RECT 21_copy_copy_copy",
       "type": "rect",
-      "x": 12.2,
-      "y": -43.37,
+      "x": 12.24,
+      "y": -43.33,
       "scale": 1,
       "rotation": 0,
-      "width": 12.1,
-      "height": 4,
+      "width": 12,
+      "height": 3.2,
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "dashdot",
@@ -2436,7 +2434,7 @@
       "name": "CIRCLE 3_copy_copy_copy_copy",
       "type": "circle",
       "x": 8.8,
-      "y": -43.37,
+      "y": -43.33,
       "scale": 1,
       "rotation": 0,
       "width": 3,
@@ -2445,7 +2443,7 @@
       "label": "-",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -2457,14 +2455,14 @@
       "id": "node_vector_1786987816358_2",
       "name": "VECTOR 14_copy_copy_copy",
       "type": "vector",
-      "x": 13.35,
-      "y": -43.37,
+      "x": 13.39,
+      "y": -43.33,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        1.55,
+        1.51,
         0
       ],
       "startBinding": {
@@ -2475,7 +2473,7 @@
         "nodeId": "node_rect_1786987816358_3",
         "pointKey": "edge_l_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2494,19 +2492,19 @@
       "points": [
         0,
         0,
-        9.25,
-        -10.49
+        9.29,
+        -10.45
       ],
       "controlPoint": [
         0,
-        -10.49
+        -10.45
       ],
       "lineShape": "straight",
       "endBinding": {
         "nodeId": "node_rect_1786987816358_7",
         "pointKey": "edge_l_int_3"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "dashed",
@@ -2519,7 +2517,7 @@
       "name": "RECT 15_copy_copy_copy",
       "type": "rect",
       "x": 16.1,
-      "y": -43.37,
+      "y": -43.33,
       "scale": 1,
       "rotation": 0,
       "width": 2.4,
@@ -2527,7 +2525,7 @@
       "label": "Robot \nActuator",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -2539,8 +2537,8 @@
       "id": "node_text_1786987816358_5",
       "name": "TEXT 40_copy_copy_copy",
       "type": "text",
-      "x": 13.89,
-      "y": -42.78,
+      "x": 14.16,
+      "y": -42.88,
       "scale": 1,
       "rotation": 0,
       "label": "u_j",
@@ -2549,14 +2547,16 @@
         "strokeWidth": 2,
         "strokeStyle": "solid",
         "color": "#000000"
-      }
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
     },
     {
       "id": "node_rect_1786987816358_7",
       "name": "RECT 84_copy_copy",
       "type": "rect",
-      "x": 12.2,
-      "y": -43.37,
+      "x": 12.24,
+      "y": -43.33,
       "scale": 1,
       "rotation": 0,
       "width": 2.3,
@@ -2564,7 +2564,7 @@
       "label": "Velocity\nController",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
@@ -2577,13 +2577,13 @@
       "name": "VECTOR 79_copy_copy",
       "type": "vector",
       "x": 9.2,
-      "y": -43.37,
+      "y": -43.33,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        1.85,
+        1.89,
         0
       ],
       "startBinding": {
@@ -2602,8 +2602,8 @@
         "fillColor": "#ffffff"
       },
       "label": "e_{cp,j}",
-      "labelOffsetX": 0.86,
-      "labelOffsetY": 1.51
+      "labelOffsetX": 1.18,
+      "labelOffsetY": 0.67
     },
     {
       "id": "node_mega_vector_1786987816358_9",
@@ -2617,11 +2617,11 @@
         0,
         0,
         0,
-        -1.8,
+        -1.1,
         -9.2,
-        -1.8,
+        -1.1,
         -9.2,
-        -0.47
+        -0.43
       ],
       "lineShape": "straight",
       "megaBindings": {
@@ -2661,7 +2661,7 @@
         "nodeId": "node_rect_1786987397864",
         "pointKey": "edge_l_int_3"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2672,20 +2672,20 @@
     {
       "id": "node_mega_line_1786987909968",
       "name": "MEGA_LINE 76",
-      "type": "mega_line",
+      "type": "mega_vector",
       "x": 17.3,
       "y": -43.36,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
-        -0.01,
+        0.03,
         2,
-        -0.01,
+        0.03,
         2,
-        3.44,
+        3.01,
         2.75,
-        3.44
+        3.01
       ],
       "lineShape": "straight",
       "megaBindings": {
@@ -2695,11 +2695,11 @@
         },
         "3": {
           "nodeId": "node_rect_1786980877193_12",
-          "pointKey": "edge_l_int_4"
+          "pointKey": "edge_l_int_5"
         }
       },
       "label": "v_{r,j}",
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2707,45 +2707,7 @@
         "fillColor": "#ffffff"
       },
       "labelOffsetX": 0.44,
-      "labelOffsetY": 0.9
-    },
-    {
-      "id": "node_super_vector_1786987972252",
-      "name": "SUPER_VECTOR 76",
-      "type": "super_vector",
-      "x": 4.5,
-      "y": -36.08,
-      "scale": 1,
-      "rotation": 0,
-      "points": [
-        0,
-        0,
-        3.9,
-        -7.29
-      ],
-      "controlPoint": [
-        0,
-        -7.29
-      ],
-      "lineShape": "straight",
-      "startBinding": {
-        "nodeId": "node_rect_1786980877193_4",
-        "pointKey": "edge_r_int_1"
-      },
-      "endBinding": {
-        "nodeId": "node_circle_1786987816358_1",
-        "pointKey": "circle_p8"
-      },
-      "label": "desired cp_{j}",
-      "fontSize": 23,
-      "style": {
-        "strokeWidth": 2.5,
-        "strokeStyle": "solid",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      },
-      "labelOffsetX": 0.17,
-      "labelOffsetY": -4.24
+      "labelOffsetY": 0.5
     },
     {
       "id": "node_super_vector_1786991299773",
@@ -2758,11 +2720,11 @@
       "points": [
         0,
         0,
-        0.65,
+        0.69,
         3.17
       ],
       "controlPoint": [
-        0.65,
+        0.69,
         0
       ],
       "lineShape": "straight",
@@ -2774,7 +2736,7 @@
         "nodeId": "node_rect_1786980877193_25",
         "pointKey": "edge_t_int_2"
       },
-      "fontSize": 23,
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
@@ -2791,10 +2753,10 @@
       "scale": 1,
       "rotation": 0,
       "points": [
+        0.04,
         0,
-        0,
-        0,
-        -3.32
+        0.04,
+        -3.28
       ],
       "endBinding": {
         "nodeId": "node_rect_1786987816358_7",
@@ -2808,8 +2770,8 @@
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "labelOffsetX": 1.67,
-      "labelOffsetY": 0.35
+      "labelOffsetX": 2.12,
+      "labelOffsetY": -0.07
     },
     {
       "id": "node_rect_1786995341404_0",
@@ -2844,7 +2806,7 @@
         0,
         0,
         1.3,
-        0
+        0.03
       ],
       "startBinding": {
         "nodeId": "node_rect_1786995341404_0",
@@ -2864,6 +2826,306 @@
       },
       "labelOffsetX": 0.67,
       "labelOffsetY": 0.47
+    },
+    {
+      "id": "node_mega_vector_1787059396353",
+      "name": "MEGA_VECTOR 78",
+      "type": "mega_vector",
+      "x": 5.1,
+      "y": -36.1,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.7,
+        0,
+        0.7,
+        -7.23,
+        3.3,
+        -7.23
+      ],
+      "lineShape": "straight",
+      "megaBindings": {
+        "0": {
+          "nodeId": "node_rect_1786980877193_4",
+          "pointKey": "edge_r_int_1"
+        },
+        "3": {
+          "nodeId": "node_circle_1786987816358_1",
+          "pointKey": "circle_p8"
+        }
+      },
+      "fontSize": 30,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_text_1787059415783",
+      "name": "TEXT 79",
+      "type": "text",
+      "x": 7.4,
+      "y": -42.56,
+      "scale": 1,
+      "rotation": 0,
+      "label": "desired \ncp_{j}",
+      "fontSize": 30,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000"
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
+    },
+    {
+      "id": "node_rect_1787062121579",
+      "name": "RECT 80",
+      "type": "rect",
+      "x": -5.2,
+      "y": -25.6,
+      "scale": 1,
+      "rotation": 0,
+      "width": 2.7,
+      "height": 1.4,
+      "label": "Robot i",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_circle_1787062224414",
+      "name": "CIRCLE 82",
+      "type": "circle",
+      "x": -1.9,
+      "y": -25.6,
+      "scale": 1,
+      "rotation": 0,
+      "width": 3,
+      "height": 2,
+      "radius": 1,
+      "label": "Contact \nPoint i",
+      "labelOffsetX": -0.01,
+      "labelOffsetY": -0.03,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#f59e0b",
+        "fillColor": "#fef3c7"
+      }
+    },
+    {
+      "id": "node_rect_1787062274429",
+      "name": "RECT 82",
+      "type": "rect",
+      "x": 1.4,
+      "y": -26.6,
+      "scale": 1,
+      "rotation": 0,
+      "width": 2,
+      "height": 1.4,
+      "label": "Slider",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#ef4444",
+        "fillColor": "#fee2e2"
+      }
+    },
+    {
+      "id": "node_vector_1787062379578",
+      "name": "VECTOR 83",
+      "type": "vector",
+      "x": -3.85,
+      "y": -25.6,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.95,
+        0
+      ],
+      "startBinding": {
+        "nodeId": "node_rect_1787062121579",
+        "pointKey": "edge_r_int_2"
+      },
+      "endBinding": {
+        "nodeId": "node_circle_1787062224414",
+        "pointKey": "circle_p8"
+      },
+      "label": "v_{r,i}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": 0.51,
+      "labelOffsetY": 0.37
+    },
+    {
+      "id": "node_vector_1787062455229",
+      "name": "VECTOR 84",
+      "type": "vector",
+      "x": -0.9,
+      "y": -25.6,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        1.3,
+        -1
+      ],
+      "startBinding": {
+        "nodeId": "node_circle_1787062224414",
+        "pointKey": "circle_p0"
+      },
+      "endBinding": {
+        "nodeId": "node_rect_1787062274429",
+        "pointKey": "edge_l_int_2"
+      },
+      "label": "F_i",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": 0.76,
+      "labelOffsetY": -0.22
+    },
+    {
+      "id": "node_vector_1787062476685",
+      "name": "VECTOR 85",
+      "type": "vector",
+      "x": -0.8,
+      "y": -27,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0.05,
+        1.2,
+        0.05
+      ],
+      "endBinding": {
+        "nodeId": "node_rect_1787062274429",
+        "pointKey": "edge_l_int_3"
+      },
+      "label": "F_j",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": 0.38,
+      "labelOffsetY": 0.38
+    },
+    {
+      "id": "node_mega_vector_1787062524149",
+      "name": "MEGA_VECTOR 86",
+      "type": "mega_vector",
+      "x": 1.4,
+      "y": -27.3,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0,
+        -1,
+        -8.5,
+        -1,
+        -8.5,
+        1.7,
+        -7.95,
+        1.7
+      ],
+      "lineShape": "straight",
+      "megaBindings": {
+        "0": {
+          "nodeId": "node_rect_1787062274429",
+          "pointKey": "edge_t_int_2"
+        },
+        "4": {
+          "nodeId": "node_rect_1787062121579",
+          "pointKey": "edge_l_int_2"
+        }
+      },
+      "label": "q_s",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": -0.45,
+      "labelOffsetY": -0.71
+    },
+    {
+      "id": "node_vector_1787062579086",
+      "name": "VECTOR 87",
+      "type": "vector",
+      "x": -5.2,
+      "y": -24.3,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0,
+        -0.6
+      ],
+      "endBinding": {
+        "nodeId": "node_rect_1787062121579",
+        "pointKey": "edge_b_int_2"
+      },
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_text_1787062586504",
+      "name": "TEXT 88",
+      "type": "text",
+      "x": -5.29,
+      "y": -23.99,
+      "scale": 1,
+      "rotation": 0,
+      "label": "desired q_s",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000"
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
     }
   ]
 }

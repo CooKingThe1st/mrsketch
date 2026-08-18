@@ -346,6 +346,18 @@ export function App() {
 
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'main_scene' | 'robot_designer'>('main_scene');
 
+  const handleModeChange = (newMode: 'main_scene' | 'robot_designer') => {
+    setActiveWorkspaceTab(newMode);
+    setDrawingMode('select');
+    if (newMode === 'robot_designer') {
+      setSelectedNodeId(null);
+      setSelectedNodeIds([]);
+    } else {
+      setSelectedPrimitiveIdx(null);
+      setSelectedPrimitiveIdxs([]);
+    }
+  };
+
   const [activeRobotDefId, setActiveRobotDefId] = useState<string>(Object.keys(initialData.definitions)[0] || '');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
@@ -1704,7 +1716,7 @@ export function App() {
         {showLeftSidebar && (
           <Sidebar
             mode={activeWorkspaceTab}
-            onModeChange={setActiveWorkspaceTab}
+            onModeChange={handleModeChange}
             scene={layout.scene}
             definitions={layout.definitions}
             activeRobotDefId={activeRobotDefId}
