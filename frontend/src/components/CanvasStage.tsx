@@ -1470,13 +1470,639 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     });
   };
 
-  const renderSceneNode = (node: SceneNode) => {
+  const renderSceneNode = (node: SceneNode, pass: 'body' | 'handles' = 'body') => {
     const isSelected = selectedNodeId === node.id;
     const px = toPixelX(node.x);
     const py = toPixelY(node.y);
     const nodeScale = node.scale || 1.0;
     const strokeDash = getStrokeDash(node.style.strokeStyle);
     const strokeOpacity = node.style.strokeOpacity ?? 1.0;
+    const isLineFamily = node.type === 'vector' || node.type === 'line' || node.type === 'super_vector' || node.type === 'super_line' || node.type === 'mega_vector' || node.type === 'mega_line';
+    const circleX = isLineFamily ? (node.points ? node.points[0] * scale * nodeScale : 0) : 0;
+    const circleY = isLineFamily ? (node.points ? -node.points[1] * scale * nodeScale : 0) : 0;
+
+    if (pass === 'handles') {
+      if (!isSelected && !selectedNodeIds.includes(node.id)) return null;
+
+      return (
+        <Group key={`${node.id}_handles_overlay`} x={px} y={py} rotation={node.rotation}>
+          {selectedNodeIds.includes(node.id) && !isSelected && (
+            <Circle
+              x={circleX}
+              y={circleY}
+              radius={(plotOptions?.grabHandleRadius ?? 14) * nodeScale * zoomRatio}
+              stroke="#a855f7"
+              strokeWidth={1.5}
+              dash={[4, 4]}
+              hitStrokeWidth={8}
+              onClick={(e) => {
+                if (drawingMode === 'select') {
+                  e.cancelBubble = true;
+                  if (e.evt.ctrlKey || e.evt.metaKey) {
+                    if (selectedNodeIds.includes(node.id)) {
+                      const newIds = selectedNodeIds.filter((id) => id !== node.id);
+                      onSelectNodes(newIds);
+                      onSelectNode(newIds.length > 0 ? newIds[newIds.length - 1] : null);
+                    } else {
+                      const newIds = [...selectedNodeIds, node.id];
+                      onSelectNodes(newIds);
+                      onSelectNode(node.id);
+                    }
+                  } else {
+                    onSelectNode(node.id);
+                    onSelectNodes([node.id]);
+                  }
+                }
+              }}
+            />
+          )}
+
+          {isSelected && (
+            <>
+              <Circle
+                x={circleX}
+                y={circleY}
+                radius={(plotOptions?.grabHandleRadius ?? 14) * nodeScale * zoomRatio}
+                stroke="#2563eb"
+                strokeWidth={2}
+                dash={[4, 4]}
+                hitStrokeWidth={8}
+                onClick={(e) => {
+                  if (drawingMode === 'select') {
+                    e.cancelBubble = true;
+                    onSelectNode(node.id);
+                    onSelectNodes([node.id]);
+                  }
+                }}
+              />
+
+              {/* Start Point Drag Handle for vector / line / super_vector / super_line */}
+              {(node.type === 'vector' || node.type === 'line' || node.type === 'super_vector' || node.type === 'super_line') && (() => {
+                const pts = node.points || [0, 0, 3, 2];
+                const p1x = pts[0] * scale * nodeScale;
+                const p1y = -pts[1] * scale * nodeScale;
+
+                return (
+                  <Circle
+                    x={p1x}
+                    y={p1y}
+                    radius={6}
+                    fill="#10b981"
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    draggable
+                    onMouseEnter={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'crosshair';
+                    }}
+                    onMouseLeave={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'default';
+                      setActiveSnapPreview(null);
+                    }}
+                    onDragMove={(e) => {
+                      const absPos = e.target.getAbsolutePosition();
+                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                      if (snap.isSnapped && snap.snapType) {
+                        setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
+                      } else {
+                        setActiveSnapPreview(null);
+                      }
+                    }}
+                    onDragEnd={(e) => {
+                      e.cancelBubble = true;
+                      setActiveSnapPreview(null);
+                      const absPos = e.target.getAbsolutePosition();
+                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+
+                      let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
+                      let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
+
+                      const oldStartSciX = node.x + (pts[0] || 0);
+                      const oldStartSciY = node.y + (pts[1] || 0);
+                      const shiftX = targetSciX - oldStartSciX;
+                      const shiftY = targetSciY - oldStartSciY;
+
+                      const newX = Math.round((node.x + shiftX) * 100) / 100;
+                      const newY = Math.round((node.y + shiftY) * 100) / 100;
+
+                      const oldEndSciX = node.x + (pts[2] || 0);
+                      const oldEndSciY = node.y + (pts[3] || 0);
+                      const newP2x = Math.round((oldEndSciX - newX) * 100) / 100;
+                      const newP2y = Math.round((oldEndSciY - newY) * 100) / 100;
+
+                      let newCp = node.controlPoint;
+                      if (node.controlPoint && node.controlPoint.length >= 2) {
+                        const oldCpSciX = node.x + node.controlPoint[0];
+                        const oldCpSciY = node.y + node.controlPoint[1];
+                        newCp = [
+                          Math.round((oldCpSciX - newX) * 100) / 100,
+                          Math.round((oldCpSciY - newY) * 100) / 100,
+                        ];
+                      }
+
+                      onUpdateNode({
+                        ...node,
+                        x: newX,
+                        y: newY,
+                        startBinding: snap.isSnapped ? snap.binding : undefined,
+                        points: [0, 0, newP2x, newP2y],
+                        controlPoint: newCp,
+                      });
+                    }}
+                  />
+                );
+              })()}
+
+              {/* End Point Drag Handle for vector / line / super_vector / super_line */}
+              {(node.type === 'vector' || node.type === 'line' || node.type === 'super_vector' || node.type === 'super_line') && (() => {
+                const pts = node.points || [0, 0, 3, 2];
+                const p2x = pts[2] * scale * nodeScale;
+                const p2y = -pts[3] * scale * nodeScale;
+
+                return (
+                  <Circle
+                    x={p2x}
+                    y={p2y}
+                    radius={7}
+                    fill="#38bdf8"
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    draggable
+                    onMouseEnter={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'crosshair';
+                    }}
+                    onMouseLeave={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'default';
+                      setActiveSnapPreview(null);
+                    }}
+                    onDragMove={(e) => {
+                      const absPos = e.target.getAbsolutePosition();
+                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                      if (snap.isSnapped && snap.snapType) {
+                        setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
+                      } else {
+                        setActiveSnapPreview(null);
+                      }
+
+                      let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
+                      let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
+
+                      let newDx = Math.round((targetSciX - node.x) * 10) / 10;
+                      let newDy = Math.round((targetSciY - node.y) * 10) / 10;
+
+                      onUpdateNode({
+                        ...node,
+                        points: [pts[0], pts[1], newDx, newDy],
+                      });
+                    }}
+                    onDragEnd={(e) => {
+                      e.cancelBubble = true;
+                      setActiveSnapPreview(null);
+                      const absPos = e.target.getAbsolutePosition();
+                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+
+                      let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
+                      let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
+
+                      let newDx = Math.round((targetSciX - node.x) * 10) / 10;
+                      let newDy = Math.round((targetSciY - node.y) * 10) / 10;
+
+                      if (!snap.isSnapped && e.evt && (e.evt.ctrlKey || e.evt.metaKey)) {
+                        const [sdnX, sdnY] = snapTo45Degrees(pts[0], pts[1], newDx, newDy);
+                        newDx = Math.round(sdnX * 10) / 10;
+                        newDy = Math.round(sdnY * 10) / 10;
+                      }
+
+                      onUpdateNode({
+                        ...node,
+                        endBinding: snap.isSnapped ? snap.binding : undefined,
+                        points: [pts[0], pts[1], newDx, newDy],
+                      });
+                    }}
+                  />
+                );
+              })()}
+
+              {/* Guidance Control Point Drag Handle for super_vector / super_line */}
+              {(node.type === 'super_vector' || node.type === 'super_line') && (() => {
+                const pts = node.points || [0, 0, 3, 2];
+                const p1x = pts[0] * scale * nodeScale;
+                const p1y = -pts[1] * scale * nodeScale;
+                const p2x = pts[2] * scale * nodeScale;
+                const p2y = -pts[3] * scale * nodeScale;
+
+                const cpx = node.controlPoint ? node.controlPoint[0] : (pts[0] + pts[2]) / 2;
+                const cpy = node.controlPoint ? node.controlPoint[1] : (pts[1] + pts[3]) / 2 + 1.0;
+                const hcx = cpx * scale * nodeScale;
+                const hcy = -cpy * scale * nodeScale;
+
+                return (
+                  <Group key="super_guidance_handle_group">
+                    {/* Dashed Guidance skeleton wire */}
+                    <Line
+                      points={[p1x, p1y, hcx, hcy, p2x, p2y]}
+                      stroke="#f59e0b"
+                      strokeWidth={1}
+                      dash={[3, 3]}
+                      opacity={0.6}
+                    />
+
+                    {/* Drag Handle Square for Guidance Point */}
+                    <Rect
+                      x={hcx - 5}
+                      y={hcy - 5}
+                      width={10}
+                      height={10}
+                      fill="#f59e0b"
+                      stroke="#ffffff"
+                      strokeWidth={2}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'grab';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                        setActiveSnapPreview(null);
+                      }}
+                      onDragMove={(e) => {
+                        const absPos = e.target.getAbsolutePosition();
+                        const snap = getSnappedSciPoint(absPos.x + 5, absPos.y + 5, true);
+                        if (snap.isSnapped && snap.snapType) {
+                          setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
+                        } else {
+                          setActiveSnapPreview(null);
+                        }
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        setActiveSnapPreview(null);
+                        const absPos = e.target.getAbsolutePosition();
+                        const snap = getSnappedSciPoint(absPos.x + 5, absPos.y + 5, true);
+
+                        let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x + 5);
+                        let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y + 5);
+
+                        let newCpx = Math.round((targetSciX - node.x) * 10) / 10;
+                        let newCpy = Math.round((targetSciY - node.y) * 10) / 10;
+
+                        onUpdateNode({
+                          ...node,
+                          controlBinding: snap.isSnapped ? snap.binding : undefined,
+                          controlPoint: [newCpx, newCpy],
+                        });
+                      }}
+                    />
+                  </Group>
+                );
+              })()}
+
+              {/* Waypoint Drag Handles for mega_vector / mega_line */}
+              {(node.type === 'mega_vector' || node.type === 'mega_line') && (() => {
+                const pts = node.points || [0, 0, 3, 2];
+                const handles = [];
+                for (let i = 0; i < pts.length; i += 2) {
+                  const idx = i / 2;
+                  const hx = pts[i] * scale * nodeScale;
+                  const hy = -pts[i + 1] * scale * nodeScale;
+
+                  handles.push(
+                    <Circle
+                      key={`mega_handle_${idx}`}
+                      x={hx}
+                      y={hy}
+                      radius={6}
+                      fill={idx === 0 ? "#10b981" : idx === pts.length / 2 - 1 ? "#f59e0b" : "#3b82f6"}
+                      stroke="#ffffff"
+                      strokeWidth={2}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'crosshair';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                        setActiveSnapPreview(null);
+                      }}
+                      onDragMove={(e) => {
+                        const absPos = e.target.getAbsolutePosition();
+                        const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                        if (snap.isSnapped && snap.snapType) {
+                          setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
+                        } else {
+                          setActiveSnapPreview(null);
+                        }
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        setActiveSnapPreview(null);
+                        const absPos = e.target.getAbsolutePosition();
+                        const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+
+                        let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
+                        let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
+
+                        if (idx === 0) {
+                          const oldStartSciX = node.x + (pts[0] || 0);
+                          const oldStartSciY = node.y + (pts[1] || 0);
+                          const shiftX = targetSciX - oldStartSciX;
+                          const shiftY = targetSciY - oldStartSciY;
+                          const newX = Math.round((node.x + shiftX) * 100) / 100;
+                          const newY = Math.round((node.y + shiftY) * 100) / 100;
+
+                          const newPts = [...pts];
+                          newPts[0] = 0;
+                          newPts[1] = 0;
+                          for (let k = 2; k < newPts.length; k += 2) {
+                            const ptSciX = node.x + pts[k];
+                            const ptSciY = node.y + pts[k + 1];
+                            newPts[k] = Math.round((ptSciX - newX) * 100) / 100;
+                            newPts[k + 1] = Math.round((ptSciY - newY) * 100) / 100;
+                          }
+
+                          const currentMegaBindings = node.megaBindings ? { ...node.megaBindings } : {};
+                          if (snap.isSnapped && snap.binding) {
+                            currentMegaBindings[0] = snap.binding;
+                          } else {
+                            delete currentMegaBindings[0];
+                          }
+
+                          onUpdateNode({
+                            ...node,
+                            x: newX,
+                            y: newY,
+                            megaBindings: currentMegaBindings,
+                            points: newPts,
+                          });
+                        } else {
+                          let newDx = Math.round((targetSciX - node.x) * 10) / 10;
+                          let newDy = Math.round((targetSciY - node.y) * 10) / 10;
+
+                          const newPts = [...pts];
+                          newPts[i] = newDx;
+                          newPts[i + 1] = newDy;
+
+                          const currentMegaBindings = node.megaBindings ? { ...node.megaBindings } : {};
+                          if (snap.isSnapped && snap.binding) {
+                            currentMegaBindings[idx] = snap.binding;
+                          } else {
+                            delete currentMegaBindings[idx];
+                          }
+
+                          onUpdateNode({
+                            ...node,
+                            megaBindings: currentMegaBindings,
+                            points: newPts,
+                          });
+                        }
+                      }}
+                    />
+                  );
+                }
+                return <Group key="mega_handles_group">{handles}</Group>;
+              })()}
+
+              {/* End Point Drag Handle for rect / obstacle scene nodes */}
+              {(node.type === 'rect' || node.type === 'obstacle') && (() => {
+                const w = (node.width || 2) * scale * nodeScale;
+                const h = (node.height || 2) * scale * nodeScale;
+                const rx = w / 2;
+                const ry = h / 2;
+
+                return (
+                  <Circle
+                    x={rx}
+                    y={ry}
+                    radius={7}
+                    fill="#38bdf8"
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    draggable
+                    onMouseEnter={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'nwse-resize';
+                    }}
+                    onMouseLeave={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'default';
+                    }}
+                    onDragMove={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) {
+                        const targetW = Math.max(0.5, (e.target.x() * 2) / (scale * nodeScale));
+                        const targetH = Math.max(0.5, (e.target.y() * 2) / (scale * nodeScale));
+                        onUpdateNode({
+                          ...node,
+                          width: Math.round(targetW * 10) / 10,
+                          height: Math.round(targetH * 10) / 10,
+                        });
+                      }
+                    }}
+                    onDragEnd={(e) => {
+                      e.cancelBubble = true;
+                      const targetW = Math.max(0.5, (e.target.x() * 2) / (scale * nodeScale));
+                      const targetH = Math.max(0.5, (e.target.y() * 2) / (scale * nodeScale));
+                      onUpdateNode({
+                        ...node,
+                        width: Math.round(targetW * 10) / 10,
+                        height: Math.round(targetH * 10) / 10,
+                      });
+                    }}
+                  />
+                );
+              })()}
+
+              {/* Radius Drag Handle for circle scene nodes */}
+              {node.type === 'circle' && (() => {
+                const r = (node.radius || 1.5) * scale * nodeScale;
+                return (
+                  <Circle
+                    x={r}
+                    y={0}
+                    radius={7}
+                    fill="#38bdf8"
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    draggable
+                    onMouseEnter={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'ew-resize';
+                    }}
+                    onMouseLeave={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'default';
+                    }}
+                    onDragMove={(e) => {
+                      e.cancelBubble = true;
+                      const dist = Math.hypot(e.target.x(), e.target.y());
+                      const newR = Math.max(0.1, Math.round((dist / (scale * nodeScale)) * 10) / 10);
+                      onUpdateNode({
+                        ...node,
+                        radius: newR,
+                      });
+                    }}
+                    onDragEnd={(e) => {
+                      e.cancelBubble = true;
+                      const dist = Math.hypot(e.target.x(), e.target.y());
+                      const newR = Math.max(0.1, Math.round((dist / (scale * nodeScale)) * 10) / 10);
+                      onUpdateNode({
+                        ...node,
+                        radius: newR,
+                      });
+                    }}
+                  />
+                );
+              })()}
+
+              {/* Shape Guidance Drag Handle for diamond scene nodes */}
+              {node.type === 'diamond' && (() => {
+                const w = (node.width || 3) * scale * nodeScale;
+                const h = (node.height || 2) * scale * nodeScale;
+                const rx = w / 2;
+                const ry = h / 2;
+
+                return (
+                  <Circle
+                    x={rx}
+                    y={ry}
+                    radius={7}
+                    fill="#c084fc"
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    draggable
+                    onMouseEnter={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'nwse-resize';
+                    }}
+                    onMouseLeave={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'default';
+                    }}
+                    onDragMove={(e) => {
+                      e.cancelBubble = true;
+                      const newW = Math.max(0.2, Math.round(((Math.abs(e.target.x()) * 2) / (scale * nodeScale)) * 10) / 10);
+                      const newH = Math.max(0.2, Math.round(((Math.abs(e.target.y()) * 2) / (scale * nodeScale)) * 10) / 10);
+                      onUpdateNode({
+                        ...node,
+                        width: newW,
+                        height: newH,
+                      });
+                    }}
+                    onDragEnd={(e) => {
+                      e.cancelBubble = true;
+                      const newW = Math.max(0.2, Math.round(((Math.abs(e.target.x()) * 2) / (scale * nodeScale)) * 10) / 10);
+                      const newH = Math.max(0.2, Math.round(((Math.abs(e.target.y()) * 2) / (scale * nodeScale)) * 10) / 10);
+                      onUpdateNode({
+                        ...node,
+                        width: newW,
+                        height: newH,
+                      });
+                    }}
+                  />
+                );
+              })()}
+
+              {/* Shape Guidance Drag Handle for triangle scene nodes */}
+              {node.type === 'triangle' && (() => {
+                const w = (node.width || 3) * scale * nodeScale;
+                const triType = node.triangleType || 'right_isosceles';
+                const handleX = triType === 'equilateral' ? (w / 2) : ((2 * w) / 3);
+                const handleY = triType === 'equilateral' ? (w * 0.866 * 0.33) : (w / 3);
+
+                return (
+                  <Circle
+                    x={handleX}
+                    y={handleY}
+                    radius={7}
+                    fill="#34d399"
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    draggable
+                    onMouseEnter={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'nwse-resize';
+                    }}
+                    onMouseLeave={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'default';
+                    }}
+                    onDragMove={(e) => {
+                      e.cancelBubble = true;
+                      const dist = Math.hypot(e.target.x(), e.target.y());
+                      const newSize = Math.max(0.2, Math.round(((dist * 1.2) / (scale * nodeScale)) * 10) / 10);
+                      onUpdateNode({
+                        ...node,
+                        width: newSize,
+                        height: newSize,
+                      });
+                    }}
+                    onDragEnd={(e) => {
+                      e.cancelBubble = true;
+                      const dist = Math.hypot(e.target.x(), e.target.y());
+                      const newSize = Math.max(0.2, Math.round(((dist * 1.2) / (scale * nodeScale)) * 10) / 10);
+                      onUpdateNode({
+                        ...node,
+                        width: newSize,
+                        height: newSize,
+                      });
+                    }}
+                  />
+                );
+              })()}
+
+              {/* Draggable handle for Annotation Label */}
+              {node.type !== 'text' && node.label && (() => {
+                const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle';
+                const defaultOffX = isShape ? 0.0 : 0.3;
+                const defaultOffY = isShape ? 0.0 : 0.3;
+                const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
+                const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
+                return (
+                  <Circle
+                    x={lox}
+                    y={loy}
+                    radius={6}
+                    fill="#c084fc"
+                    stroke="#ffffff"
+                    strokeWidth={1.5}
+                    draggable
+                    onMouseEnter={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'move';
+                    }}
+                    onMouseLeave={(e) => {
+                      const stage = e.target.getStage();
+                      if (stage) stage.container().style.cursor = 'default';
+                    }}
+                    onDragStart={(e) => {
+                      e.cancelBubble = true;
+                    }}
+                    onDragMove={(e) => {
+                      e.cancelBubble = true;
+                    }}
+                    onDragEnd={(e) => {
+                      e.cancelBubble = true;
+                      const newOffsetX = Math.round((e.target.x() / (scale * nodeScale)) * 100) / 100;
+                      const newOffsetY = Math.round((-e.target.y() / (scale * nodeScale)) * 100) / 100;
+                      onUpdateNode({
+                        ...node,
+                        labelOffsetX: newOffsetX,
+                        labelOffsetY: newOffsetY,
+                      });
+                    }}
+                  />
+                );
+              })()}
+            </>
+          )}
+        </Group>
+      );
+    }
 
     let nodeContent = null;
 
@@ -1514,25 +2140,34 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     } else if (node.type === 'triangle') {
       const w = (node.width || 3) * scale * nodeScale;
       const triType = node.triangleType || 'right_isosceles';
-      let pts: number[] = [];
       if (triType === 'equilateral') {
         const h = w * 0.866;
-        pts = [0, -h * 0.66, -w / 2, h * 0.33, w / 2, h * 0.33];
+        const pts = [0, -h * 0.66, -w / 2, h * 0.33, w / 2, h * 0.33];
+        nodeContent = (
+          <Line
+            points={pts}
+            closed
+            fill={node.style.fillColor || '#fcd34d'}
+            stroke={node.style.color}
+            strokeWidth={node.style.strokeWidth}
+            opacity={strokeOpacity}
+            dash={strokeDash}
+          />
+        );
       } else {
-        // right_isosceles: Centroid at (0,0)
-        pts = [-w / 3, -2 * w / 3, -w / 3, w / 3, (2 * w) / 3, w / 3];
+        const pts = [-w / 3, -(2 * w) / 3, -w / 3, w / 3, (2 * w) / 3, w / 3];
+        nodeContent = (
+          <Line
+            points={pts}
+            closed
+            fill={node.style.fillColor || '#fcd34d'}
+            stroke={node.style.color}
+            strokeWidth={node.style.strokeWidth}
+            opacity={strokeOpacity}
+            dash={strokeDash}
+          />
+        );
       }
-      nodeContent = (
-        <Line
-          points={pts}
-          closed
-          fill={node.style.fillColor || '#fcd34d'}
-          stroke={node.style.color}
-          strokeWidth={node.style.strokeWidth}
-          opacity={strokeOpacity}
-          dash={strokeDash}
-        />
-      );
     } else if (node.type === 'diamond') {
       const w = (node.width || 3) * scale * nodeScale;
       const h = (node.height || 2) * scale * nodeScale;
@@ -1548,25 +2183,33 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           dash={strokeDash}
         />
       );
-    } else if (node.type === 'vector' || node.type === 'line') {
+    } else if (node.type === 'vector') {
       const pts = node.points || [0, 0, 3, 2];
       const p1x = pts[0] * scale * nodeScale;
       const p1y = -pts[1] * scale * nodeScale;
       const p2x = pts[2] * scale * nodeScale;
       const p2y = -pts[3] * scale * nodeScale;
 
-      nodeContent = node.type === 'vector' ? (
+      nodeContent = (
         <Arrow
           points={[p1x, p1y, p2x, p2y]}
           stroke={node.style.color}
           fill={node.style.color}
           strokeWidth={node.style.strokeWidth}
           opacity={strokeOpacity}
-          pointerLength={10}
-          pointerWidth={10}
           dash={strokeDash}
+          pointerLength={8 * zoomRatio}
+          pointerWidth={8 * zoomRatio}
         />
-      ) : (
+      );
+    } else if (node.type === 'line') {
+      const pts = node.points || [0, 0, 3, 2];
+      const p1x = pts[0] * scale * nodeScale;
+      const p1y = -pts[1] * scale * nodeScale;
+      const p2x = pts[2] * scale * nodeScale;
+      const p2y = -pts[3] * scale * nodeScale;
+
+      nodeContent = (
         <Line
           points={[p1x, p1y, p2x, p2y]}
           stroke={node.style.color}
@@ -1588,40 +2231,75 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       const hcy = -cpy * scale * nodeScale;
 
       const isStraight = node.lineShape === 'straight';
-      const tensionVal = isStraight ? 0 : 0.4;
 
       if (node.type === 'super_line') {
-        nodeContent = (
-          <Line
-            points={[p1x, p1y, hcx, hcy, p2x, p2y]}
-            tension={tensionVal}
-            stroke={node.style.color}
-            strokeWidth={node.style.strokeWidth || 2.5}
-            opacity={strokeOpacity}
-            dash={strokeDash}
-          />
-        );
+        if (isStraight) {
+          nodeContent = (
+            <Line
+              points={[p1x, p1y, hcx, hcy, p2x, p2y]}
+              stroke={node.style.color}
+              strokeWidth={node.style.strokeWidth}
+              opacity={strokeOpacity}
+              dash={strokeDash}
+            />
+          );
+        } else {
+          nodeContent = (
+            <Line
+              points={[p1x, p1y, hcx, hcy, p2x, p2y]}
+              bezier
+              stroke={node.style.color}
+              strokeWidth={node.style.strokeWidth}
+              opacity={strokeOpacity}
+              dash={strokeDash}
+            />
+          );
+        }
       } else {
-        nodeContent = (
-          <Arrow
-            points={[p1x, p1y, hcx, hcy, p2x, p2y]}
-            tension={tensionVal}
-            stroke={node.style.color}
-            fill={node.style.color}
-            strokeWidth={node.style.strokeWidth || 2.5}
-            opacity={strokeOpacity}
-            pointerLength={10}
-            pointerWidth={10}
-            dash={strokeDash}
-          />
-        );
+        if (isStraight) {
+          nodeContent = (
+            <Group>
+              <Line
+                points={[p1x, p1y, hcx, hcy]}
+                stroke={node.style.color}
+                strokeWidth={node.style.strokeWidth}
+                opacity={strokeOpacity}
+                dash={strokeDash}
+              />
+              <Arrow
+                points={[hcx, hcy, p2x, p2y]}
+                stroke={node.style.color}
+                fill={node.style.color}
+                strokeWidth={node.style.strokeWidth}
+                opacity={strokeOpacity}
+                dash={strokeDash}
+                pointerLength={8 * zoomRatio}
+                pointerWidth={8 * zoomRatio}
+              />
+            </Group>
+          );
+        } else {
+          nodeContent = (
+            <Arrow
+              points={[p1x, p1y, hcx, hcy, p2x, p2y]}
+              bezier
+              stroke={node.style.color}
+              fill={node.style.color}
+              strokeWidth={node.style.strokeWidth}
+              opacity={strokeOpacity}
+              dash={strokeDash}
+              pointerLength={8 * zoomRatio}
+              pointerWidth={8 * zoomRatio}
+            />
+          );
+        }
       }
-    } else if (node.type === 'mega_line' || node.type === 'mega_vector') {
+    } else if (node.type === 'mega_vector' || node.type === 'mega_line') {
       const pts = node.points || [0, 0, 3, 2];
-      const flatKonvaPoints: number[] = [];
-      for (let i = 0; i < pts.length - 1; i += 2) {
-        flatKonvaPoints.push(pts[i] * scale * nodeScale);
-        flatKonvaPoints.push(-pts[i + 1] * scale * nodeScale);
+      const konvaPoints: number[] = [];
+      for (let i = 0; i < pts.length; i += 2) {
+        konvaPoints.push(pts[i] * scale * nodeScale);
+        konvaPoints.push(-pts[i + 1] * scale * nodeScale);
       }
 
       const isStraight = node.lineShape === 'straight';
@@ -1630,33 +2308,56 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       if (node.type === 'mega_line') {
         nodeContent = (
           <Line
-            points={flatKonvaPoints}
+            points={konvaPoints}
             tension={tensionVal}
             stroke={node.style.color}
-            strokeWidth={node.style.strokeWidth || 2.5}
+            strokeWidth={node.style.strokeWidth}
             opacity={strokeOpacity}
             dash={strokeDash}
           />
         );
       } else {
-        nodeContent = (
-          <Arrow
-            points={flatKonvaPoints}
-            tension={tensionVal}
-            stroke={node.style.color}
-            fill={node.style.color}
-            strokeWidth={node.style.strokeWidth || 2.5}
-            opacity={strokeOpacity}
-            pointerLength={10}
-            pointerWidth={10}
-            dash={strokeDash}
-          />
-        );
+        if (isStraight && konvaPoints.length >= 4) {
+          const mainPoints = konvaPoints.slice(0, konvaPoints.length - 2);
+          const pLastX = konvaPoints[konvaPoints.length - 4];
+          const pLastY = konvaPoints[konvaPoints.length - 3];
+          const pHeadX = konvaPoints[konvaPoints.length - 2];
+          const pHeadY = konvaPoints[konvaPoints.length - 1];
+
+          nodeContent = (
+            <Group>
+              <Line
+                points={mainPoints}
+                stroke={node.style.color}
+                strokeWidth={node.style.strokeWidth}
+                opacity={strokeOpacity}
+                dash={strokeDash}
+              />
+              <Arrow
+                points={[pLastX, pLastY, pHeadX, pHeadY]}
+                stroke={node.style.color}
+                fill={node.style.color}
+                strokeWidth={node.style.strokeWidth}
+                opacity={strokeOpacity}
+                dash={strokeDash}
+                pointerLength={8 * zoomRatio}
+                pointerWidth={8 * zoomRatio}
+              />
+            </Group>
+          );
+        } else {
+          nodeContent = (
+            <Line
+              points={konvaPoints}
+              tension={tensionVal}
+              stroke={node.style.color}
+              strokeWidth={node.style.strokeWidth}
+              opacity={strokeOpacity}
+              dash={strokeDash}
+            />
+          );
+        }
       }
-    } else if (node.type === 'text') {
-      nodeContent = (
-        <Circle radius={isSelected ? 4 : 0} fill="#c084fc" opacity={isSelected ? 0.9 : 0.0} />
-      );
     }
 
     return (
@@ -1736,7 +2437,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           if (drawingMode === 'select') {
             e.cancelBubble = true;
             if (e.evt.ctrlKey || e.evt.metaKey) {
-              // Ctrl + Click Multi-Select Toggle!
               if (selectedNodeIds.includes(node.id)) {
                 const newIds = selectedNodeIds.filter((id) => id !== node.id);
                 onSelectNodes(newIds);
@@ -1747,7 +2447,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 onSelectNode(node.id);
               }
             } else {
-              // Normal single selection
               onSelectNode(node.id);
               onSelectNodes([node.id]);
             }
@@ -1863,514 +2562,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           />
         )}
 
-        {selectedNodeIds.includes(node.id) && !isSelected && (
-          <Circle
-            radius={(plotOptions?.grabHandleRadius ?? 14) * nodeScale * zoomRatio}
-            stroke="#a855f7"
-            strokeWidth={1.5}
-            dash={[4, 4]}
-            hitStrokeWidth={8}
-            onClick={(e) => {
-              if (drawingMode === 'select') {
-                e.cancelBubble = true;
-                if (e.evt.ctrlKey || e.evt.metaKey) {
-                  if (selectedNodeIds.includes(node.id)) {
-                    const newIds = selectedNodeIds.filter((id) => id !== node.id);
-                    onSelectNodes(newIds);
-                    onSelectNode(newIds.length > 0 ? newIds[newIds.length - 1] : null);
-                  } else {
-                    const newIds = [...selectedNodeIds, node.id];
-                    onSelectNodes(newIds);
-                    onSelectNode(node.id);
-                  }
-                } else {
-                  onSelectNode(node.id);
-                  onSelectNodes([node.id]);
-                }
-              }
-            }}
-          />
-        )}
-
-        {isSelected && (
-          <>
-            <Circle
-              radius={(plotOptions?.grabHandleRadius ?? 14) * nodeScale * zoomRatio}
-              stroke="#2563eb"
-              strokeWidth={2}
-              dash={[4, 4]}
-              hitStrokeWidth={8}
-              onClick={(e) => {
-                if (drawingMode === 'select') {
-                  e.cancelBubble = true;
-                  onSelectNode(node.id);
-                  onSelectNodes([node.id]);
-                }
-              }}
-            />
-
-            {/* Start Point Drag Handle for vector / line / super_vector / super_line */}
-            {(node.type === 'vector' || node.type === 'line' || node.type === 'super_vector' || node.type === 'super_line') && (() => {
-              const pts = node.points || [0, 0, 3, 2];
-              const p1x = pts[0] * scale * nodeScale;
-              const p1y = -pts[1] * scale * nodeScale;
-
-              return (
-                <Circle
-                  x={p1x}
-                  y={p1y}
-                  radius={6}
-                  fill="#10b981"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                  draggable
-                  onMouseEnter={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'crosshair';
-                  }}
-                  onMouseLeave={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'default';
-                    setActiveSnapPreview(null);
-                  }}
-                  onDragMove={(e) => {
-                    const absPos = e.target.getAbsolutePosition();
-                    const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
-                    if (snap.isSnapped && snap.snapType) {
-                      setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
-                    } else {
-                      setActiveSnapPreview(null);
-                    }
-                  }}
-                  onDragEnd={(e) => {
-                    e.cancelBubble = true;
-                    setActiveSnapPreview(null);
-                    const absPos = e.target.getAbsolutePosition();
-                    const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
-
-                    let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
-                    let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
-
-                    let newP1x = Math.round((targetSciX - node.x) * 10) / 10;
-                    let newP1y = Math.round((targetSciY - node.y) * 10) / 10;
-
-                    onUpdateNode({
-                      ...node,
-                      startBinding: snap.isSnapped ? snap.binding : undefined,
-                      points: [newP1x, newP1y, pts[2], pts[3]],
-                    });
-                  }}
-                />
-              );
-            })()}
-
-            {/* End Point Drag Handle for vector / line / super_vector / super_line */}
-            {(node.type === 'vector' || node.type === 'line' || node.type === 'super_vector' || node.type === 'super_line') && (() => {
-              const pts = node.points || [0, 0, 3, 2];
-              const p2x = pts[2] * scale * nodeScale;
-              const p2y = -pts[3] * scale * nodeScale;
-
-              return (
-                <Circle
-                  x={p2x}
-                  y={p2y}
-                  radius={7}
-                  fill="#38bdf8"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                  draggable
-                  onMouseEnter={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'crosshair';
-                  }}
-                  onMouseLeave={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'default';
-                    setActiveSnapPreview(null);
-                  }}
-                  onDragMove={(e) => {
-                    const absPos = e.target.getAbsolutePosition();
-                    const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
-                    if (snap.isSnapped && snap.snapType) {
-                      setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
-                    } else {
-                      setActiveSnapPreview(null);
-                    }
-
-                    let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
-                    let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
-
-                    let newDx = Math.round((targetSciX - node.x) * 10) / 10;
-                    let newDy = Math.round((targetSciY - node.y) * 10) / 10;
-
-                    onUpdateNode({
-                      ...node,
-                      points: [pts[0], pts[1], newDx, newDy],
-                    });
-                  }}
-                  onDragEnd={(e) => {
-                    e.cancelBubble = true;
-                    setActiveSnapPreview(null);
-                    const absPos = e.target.getAbsolutePosition();
-                    const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
-
-                    let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
-                    let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
-
-                    let newDx = Math.round((targetSciX - node.x) * 10) / 10;
-                    let newDy = Math.round((targetSciY - node.y) * 10) / 10;
-
-                    if (!snap.isSnapped && e.evt && (e.evt.ctrlKey || e.evt.metaKey)) {
-                      const [sdnX, sdnY] = snapTo45Degrees(pts[0], pts[1], newDx, newDy);
-                      newDx = Math.round(sdnX * 10) / 10;
-                      newDy = Math.round(sdnY * 10) / 10;
-                    }
-
-                    onUpdateNode({
-                      ...node,
-                      endBinding: snap.isSnapped ? snap.binding : undefined,
-                      points: [pts[0], pts[1], newDx, newDy],
-                    });
-                  }}
-                />
-              );
-            })()}
-
-            {/* Guidance Control Point Drag Handle for super_vector / super_line */}
-            {(node.type === 'super_vector' || node.type === 'super_line') && (() => {
-              const pts = node.points || [0, 0, 3, 2];
-              const p1x = pts[0] * scale * nodeScale;
-              const p1y = -pts[1] * scale * nodeScale;
-              const p2x = pts[2] * scale * nodeScale;
-              const p2y = -pts[3] * scale * nodeScale;
-
-              const cpx = node.controlPoint ? node.controlPoint[0] : (pts[0] + pts[2]) / 2;
-              const cpy = node.controlPoint ? node.controlPoint[1] : (pts[1] + pts[3]) / 2 + 1.0;
-              const hcx = cpx * scale * nodeScale;
-              const hcy = -cpy * scale * nodeScale;
-
-              return (
-                <Group key="super_guidance_handle_group">
-                  {/* Dashed Guidance skeleton wire */}
-                  <Line
-                    points={[p1x, p1y, hcx, hcy, p2x, p2y]}
-                    stroke="#f59e0b"
-                    strokeWidth={1}
-                    dash={[3, 3]}
-                    opacity={0.6}
-                  />
-
-                  {/* Drag Handle Square for Guidance Point */}
-                  <Rect
-                    x={hcx - 5}
-                    y={hcy - 5}
-                    width={10}
-                    height={10}
-                    fill="#f59e0b"
-                    stroke="#ffffff"
-                    strokeWidth={2}
-                    draggable
-                    onMouseEnter={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) stage.container().style.cursor = 'grab';
-                    }}
-                    onMouseLeave={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) stage.container().style.cursor = 'default';
-                      setActiveSnapPreview(null);
-                    }}
-                    onDragMove={(e) => {
-                      const absPos = e.target.getAbsolutePosition();
-                      const snap = getSnappedSciPoint(absPos.x + 5, absPos.y + 5, true);
-                      if (snap.isSnapped && snap.snapType) {
-                        setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
-                      } else {
-                        setActiveSnapPreview(null);
-                      }
-                    }}
-                    onDragEnd={(e) => {
-                      e.cancelBubble = true;
-                      setActiveSnapPreview(null);
-                      const absPos = e.target.getAbsolutePosition();
-                      const snap = getSnappedSciPoint(absPos.x + 5, absPos.y + 5, true);
-
-                      let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x + 5);
-                      let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y + 5);
-
-                      let newCpx = Math.round((targetSciX - node.x) * 10) / 10;
-                      let newCpy = Math.round((targetSciY - node.y) * 10) / 10;
-
-                      onUpdateNode({
-                        ...node,
-                        controlBinding: snap.isSnapped ? snap.binding : undefined,
-                        controlPoint: [newCpx, newCpy],
-                      });
-                    }}
-                  />
-                </Group>
-              );
-            })()}
-
-            {/* Waypoint Drag Handles for mega_vector / mega_line */}
-            {(node.type === 'mega_vector' || node.type === 'mega_line') && (() => {
-              const pts = node.points || [0, 0, 3, 2];
-              const handles = [];
-              for (let i = 0; i < pts.length; i += 2) {
-                const idx = i / 2;
-                const hx = pts[i] * scale * nodeScale;
-                const hy = -pts[i + 1] * scale * nodeScale;
-
-                handles.push(
-                  <Circle
-                    key={`mega_handle_${idx}`}
-                    x={hx}
-                    y={hy}
-                    radius={6}
-                    fill={idx === 0 ? "#10b981" : idx === pts.length / 2 - 1 ? "#f59e0b" : "#3b82f6"}
-                    stroke="#ffffff"
-                    strokeWidth={2}
-                    draggable
-                    onMouseEnter={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) stage.container().style.cursor = 'crosshair';
-                    }}
-                    onMouseLeave={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) stage.container().style.cursor = 'default';
-                      setActiveSnapPreview(null);
-                    }}
-                    onDragMove={(e) => {
-                      const absPos = e.target.getAbsolutePosition();
-                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
-                      if (snap.isSnapped && snap.snapType) {
-                        setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
-                      } else {
-                        setActiveSnapPreview(null);
-                      }
-                    }}
-                    onDragEnd={(e) => {
-                      e.cancelBubble = true;
-                      setActiveSnapPreview(null);
-                      const absPos = e.target.getAbsolutePosition();
-                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
-
-                      let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
-                      let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
-
-                      let newDx = Math.round((targetSciX - node.x) * 10) / 10;
-                      let newDy = Math.round((targetSciY - node.y) * 10) / 10;
-
-                      const newPts = [...pts];
-                      newPts[i] = newDx;
-                      newPts[i + 1] = newDy;
-
-                      const currentMegaBindings = node.megaBindings ? { ...node.megaBindings } : {};
-                      if (snap.isSnapped && snap.binding) {
-                        currentMegaBindings[idx] = snap.binding;
-                      } else {
-                        delete currentMegaBindings[idx];
-                      }
-
-                      onUpdateNode({
-                        ...node,
-                        megaBindings: currentMegaBindings,
-                        points: newPts,
-                      });
-                    }}
-                  />
-                );
-              }
-              return <Group key="mega_handles_group">{handles}</Group>;
-            })()}
-
-            {/* End Point Drag Handle for rect / obstacle scene nodes */}
-            {(node.type === 'rect' || node.type === 'obstacle') && (() => {
-              const w = (node.width || 2) * scale * nodeScale;
-              const h = (node.height || 2) * scale * nodeScale;
-              const rx = w / 2;
-              const ry = h / 2;
-
-              return (
-                <Circle
-                  x={rx}
-                  y={ry}
-                  radius={7}
-                  fill="#38bdf8"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                  draggable
-                  onMouseEnter={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'nwse-resize';
-                  }}
-                  onMouseLeave={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'default';
-                  }}
-                  onDragMove={(e) => {
-                    e.cancelBubble = true;
-                    const newW = Math.max(0.2, Math.round(((Math.abs(e.target.x()) * 2) / (scale * nodeScale)) * 10) / 10);
-                    const newH = Math.max(0.2, Math.round(((Math.abs(e.target.y()) * 2) / (scale * nodeScale)) * 10) / 10);
-                    onUpdateNode({
-                      ...node,
-                      width: newW,
-                      height: newH,
-                    });
-                  }}
-                  onDragEnd={(e) => {
-                    e.cancelBubble = true;
-                    const newW = Math.max(0.2, Math.round(((Math.abs(e.target.x()) * 2) / (scale * nodeScale)) * 10) / 10);
-                    const newH = Math.max(0.2, Math.round(((Math.abs(e.target.y()) * 2) / (scale * nodeScale)) * 10) / 10);
-                    onUpdateNode({
-                      ...node,
-                      width: newW,
-                      height: newH,
-                    });
-                  }}
-                />
-              );
-            })()}
-
-            {/* Resizing Point Drag Handle for circle scene nodes */}
-            {node.type === 'circle' && (() => {
-              const r = (node.radius || 1.5) * scale * nodeScale;
-              return (
-                <Circle
-                  x={r}
-                  y={0}
-                  radius={7}
-                  fill="#38bdf8"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                  draggable
-                  onMouseEnter={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'ew-resize';
-                  }}
-                  onMouseLeave={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'default';
-                  }}
-                  onDragMove={(e) => {
-                    e.cancelBubble = true;
-                    const dist = Math.hypot(e.target.x(), e.target.y());
-                    const newR = Math.max(0.1, Math.round((dist / (scale * nodeScale)) * 10) / 10);
-                    onUpdateNode({
-                      ...node,
-                      radius: newR,
-                    });
-                  }}
-                  onDragEnd={(e) => {
-                    e.cancelBubble = true;
-                    const dist = Math.hypot(e.target.x(), e.target.y());
-                    const newR = Math.max(0.1, Math.round((dist / (scale * nodeScale)) * 10) / 10);
-                    onUpdateNode({
-                      ...node,
-                      radius: newR,
-                    });
-                  }}
-                />
-              );
-            })()}
-
-            {/* Shape Guidance Drag Handle for diamond scene nodes */}
-            {node.type === 'diamond' && (() => {
-              const w = (node.width || 3) * scale * nodeScale;
-              const h = (node.height || 2) * scale * nodeScale;
-              const rx = w / 2;
-              const ry = h / 2;
-
-              return (
-                <Circle
-                  x={rx}
-                  y={ry}
-                  radius={7}
-                  fill="#c084fc"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                  draggable
-                  onMouseEnter={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'nwse-resize';
-                  }}
-                  onMouseLeave={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'default';
-                  }}
-                  onDragMove={(e) => {
-                    e.cancelBubble = true;
-                    const newW = Math.max(0.2, Math.round(((Math.abs(e.target.x()) * 2) / (scale * nodeScale)) * 10) / 10);
-                    const newH = Math.max(0.2, Math.round(((Math.abs(e.target.y()) * 2) / (scale * nodeScale)) * 10) / 10);
-                    onUpdateNode({
-                      ...node,
-                      width: newW,
-                      height: newH,
-                    });
-                  }}
-                  onDragEnd={(e) => {
-                    e.cancelBubble = true;
-                    const newW = Math.max(0.2, Math.round(((Math.abs(e.target.x()) * 2) / (scale * nodeScale)) * 10) / 10);
-                    const newH = Math.max(0.2, Math.round(((Math.abs(e.target.y()) * 2) / (scale * nodeScale)) * 10) / 10);
-                    onUpdateNode({
-                      ...node,
-                      width: newW,
-                      height: newH,
-                    });
-                  }}
-                />
-              );
-            })()}
-
-            {/* Shape Guidance Drag Handle for triangle scene nodes */}
-            {node.type === 'triangle' && (() => {
-              const w = (node.width || 3) * scale * nodeScale;
-              const triType = node.triangleType || 'right_isosceles';
-              const handleX = triType === 'equilateral' ? (w / 2) : ((2 * w) / 3);
-              const handleY = triType === 'equilateral' ? (w * 0.866 * 0.33) : (w / 3);
-
-              return (
-                <Circle
-                  x={handleX}
-                  y={handleY}
-                  radius={7}
-                  fill="#34d399"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                  draggable
-                  onMouseEnter={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'nwse-resize';
-                  }}
-                  onMouseLeave={(e) => {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = 'default';
-                  }}
-                  onDragMove={(e) => {
-                    e.cancelBubble = true;
-                    const dist = Math.hypot(e.target.x(), e.target.y());
-                    const newSize = Math.max(0.2, Math.round(((dist * 1.2) / (scale * nodeScale)) * 10) / 10);
-                    onUpdateNode({
-                      ...node,
-                      width: newSize,
-                      height: newSize,
-                    });
-                  }}
-                  onDragEnd={(e) => {
-                    e.cancelBubble = true;
-                    const dist = Math.hypot(e.target.x(), e.target.y());
-                    const newSize = Math.max(0.2, Math.round(((dist * 1.2) / (scale * nodeScale)) * 10) / 10);
-                    onUpdateNode({
-                      ...node,
-                      width: newSize,
-                      height: newSize,
-                    });
-                  }}
-                />
-              );
-            })()}
-          </>
-        )}
-
         {node.label && (() => {
           const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle' || node.type === 'text' || node.type === 'alias';
           const defaultOffX = isShape ? 0.0 : 0.3;
@@ -2450,50 +2641,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 lineHeight={1.25}
               />
             </Label>
-          );
-        })()}
-
-        {/* Draggable handle for Annotation Label */}
-        {isSelected && node.type !== 'text' && node.label && (() => {
-          const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle';
-          const defaultOffX = isShape ? 0.0 : 0.3;
-          const defaultOffY = isShape ? 0.0 : 0.3;
-          const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
-          const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
-          return (
-            <Circle
-              x={lox}
-              y={loy}
-              radius={6}
-              fill="#c084fc"
-              stroke="#ffffff"
-              strokeWidth={1.5}
-              draggable
-              onMouseEnter={(e) => {
-                const stage = e.target.getStage();
-                if (stage) stage.container().style.cursor = 'move';
-              }}
-              onMouseLeave={(e) => {
-                const stage = e.target.getStage();
-                if (stage) stage.container().style.cursor = 'default';
-              }}
-              onDragStart={(e) => {
-                e.cancelBubble = true;
-              }}
-              onDragMove={(e) => {
-                e.cancelBubble = true;
-              }}
-              onDragEnd={(e) => {
-                e.cancelBubble = true;
-                const newOffsetX = Math.round((e.target.x() / (scale * nodeScale)) * 100) / 100;
-                const newOffsetY = Math.round((-e.target.y() / (scale * nodeScale)) * 100) / 100;
-                onUpdateNode({
-                  ...node,
-                  labelOffsetX: newOffsetX,
-                  labelOffsetY: newOffsetY,
-                });
-              }}
-            />
           );
         })()}
       </Group>
@@ -3956,7 +4103,13 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           {mode === 'main_scene' ? (
             <>
               {renderExportBounds()}
-              {scene.map(renderSceneNode)}
+              {/* Base Layer: All scene node bodies in natural layer stack order */}
+              {scene.map((node) => renderSceneNode(node, 'body'))}
+
+              {/* Top Overlay Layer: Selection handles & guidance points of focused/selected node on top */}
+              {scene
+                .filter((node) => selectedNodeIds.includes(node.id) || node.id === selectedNodeId)
+                .map((node) => renderSceneNode(node, 'handles'))}
               {renderInteractiveDrawingPreview()}
               {rightDragStart && rightDragEnd && (
                 <Rect

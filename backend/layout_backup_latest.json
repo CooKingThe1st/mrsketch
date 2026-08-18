@@ -854,7 +854,7 @@
       "name": "RECT 21_copy",
       "type": "rect",
       "x": 11.6,
-      "y": -15.15,
+      "y": -15.1,
       "scale": 1,
       "rotation": 0,
       "width": 11.6,
@@ -915,8 +915,8 @@
       "height": 2,
       "radius": 0.5,
       "label": "-",
-      "labelOffsetX": -0.1,
-      "labelOffsetY": 0.19,
+      "labelOffsetX": -0.03,
+      "labelOffsetY": 0.02,
       "fontSize": 30,
       "style": {
         "strokeWidth": 2,
@@ -951,8 +951,8 @@
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "labelOffsetX": 0.8,
-      "labelOffsetY": 0.75
+      "labelOffsetX": 1.15,
+      "labelOffsetY": 0.95
     },
     {
       "id": "node_rect_1786655656770_3",
@@ -1136,19 +1136,19 @@
       "id": "node_mega_vector_1786655656770_14",
       "name": "MEGA_VECTOR 17_copy",
       "type": "mega_vector",
-      "x": 18.64,
-      "y": -14.71,
+      "x": 18.03,
+      "y": -15.08,
       "scale": 1,
       "rotation": 0,
       "points": [
-        -1.4,
-        0.1,
-        -1.4,
+        -1.1,
+        0.4,
+        -1.1,
         -1.5,
-        -10.07,
+        -9.46,
         -1.5,
-        -10.07,
-        -0.26
+        -9.46,
+        0.11
       ],
       "lineShape": "straight",
       "megaBindings": {
@@ -1344,8 +1344,8 @@
       "id": "node_text_1786655656770_29",
       "name": "TEXT 33_copy",
       "type": "text",
-      "x": -8.69,
-      "y": -23.06,
+      "x": -9,
+      "y": -20.46,
       "scale": 1,
       "rotation": 0,
       "label": "Measured \nq_{o}",
@@ -1355,8 +1355,8 @@
         "strokeStyle": "solid",
         "color": "#000000"
       },
-      "labelOffsetX": -0.48,
-      "labelOffsetY": 2.48
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
     },
     {
       "id": "node_text_1786655656770_33",
@@ -1394,8 +1394,8 @@
       "id": "node_text_1786655656770_37",
       "name": "TEXT 40_copy",
       "type": "text",
-      "x": 18.22,
-      "y": -14.2,
+      "x": 17.92,
+      "y": -14.06,
       "scale": 1,
       "rotation": 0,
       "label": "F_i",
@@ -1404,7 +1404,9 @@
         "strokeWidth": 2,
         "strokeStyle": "solid",
         "color": "#000000"
-      }
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
     },
     {
       "id": "node_vector_1786656262460",
@@ -1741,8 +1743,8 @@
       "height": 2,
       "radius": 0.5,
       "label": "-",
-      "labelOffsetX": -0.1,
-      "labelOffsetY": 0.19,
+      "labelOffsetX": 0.02,
+      "labelOffsetY": -0.01,
       "fontSize": 23,
       "style": {
         "strokeWidth": 2,
