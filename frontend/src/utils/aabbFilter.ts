@@ -11,10 +11,26 @@ export function computeNodeAABB(
   const cosR = Math.cos(rad);
   const sinR = Math.sin(rad);
 
-  const xs: number[] = [nx];
-  const ys: number[] = [ny];
-
   const type = node.type;
+
+  // Standalone text nodes have no background shape at (nx, ny); their content is solely at the label offset
+  if (type === 'text') {
+    const lox = (node.labelOffsetX ?? 0.0) * scale;
+    const loy = (node.labelOffsetY ?? 0.0) * scale;
+    const lx = nx + lox;
+    const ly = ny + loy;
+    const fsize = node.fontSize || 12;
+    const fsizeUnits = (fsize / 40.0) * scale;
+    const lines = (node.label || '').split('\n');
+    const lineCount = Math.max(1, lines.length);
+    const maxChars = Math.max(...lines.map((l) => l.length), 1);
+    const halfW = Math.max(0.2, maxChars * (fsizeUnits * 0.28));
+    const halfH = Math.max(0.15, lineCount * (fsizeUnits * 0.45));
+    return [lx - halfW, ly - halfH, lx + halfW, ly + halfH];
+  }
+
+  const xs: number[] = [];
+  const ys: number[] = [];
 
   if (type === 'rect' || type === 'obstacle') {
     const w = (node.width || 3) * scale;
@@ -118,18 +134,29 @@ export function computeNodeAABB(
       ys.push(ny - 1.0, ny + 1.0);
     }
   } else {
-    // text or default
+    // default
     xs.push(nx - 0.5, nx + 0.5);
     ys.push(ny - 0.5, ny + 0.5);
   }
 
   if (node.label && node.label.trim()) {
-    const isShape = type === 'rect' || type === 'circle' || type === 'triangle' || type === 'diamond' || type === 'obstacle' || type === 'text' || type === 'alias';
+    const isShape = type === 'rect' || type === 'circle' || type === 'triangle' || type === 'diamond' || type === 'obstacle' || type === 'alias';
     const defaultOff = isShape ? 0.0 : 0.3;
     const lox = (node.labelOffsetX ?? defaultOff) * scale;
     const loy = (node.labelOffsetY ?? defaultOff) * scale;
-    xs.push(nx + lox - 0.3, nx + lox + 0.3);
-    ys.push(ny + loy - 0.3, ny + loy + 0.3);
+    const fsize = node.fontSize || 12;
+    const fsizeUnits = (fsize / 40.0) * scale;
+    const lines = node.label.split('\n');
+    const lineCount = Math.max(1, lines.length);
+    const maxChars = Math.max(...lines.map((l) => l.length), 1);
+    const halfW = Math.max(0.2, maxChars * (fsizeUnits * 0.28));
+    const halfH = Math.max(0.15, lineCount * (fsizeUnits * 0.45));
+    xs.push(nx + lox - halfW, nx + lox + halfW);
+    ys.push(ny + loy - halfH, ny + loy + halfH);
+  }
+
+  if (xs.length === 0 || ys.length === 0) {
+    return [nx - 0.5, ny - 0.5, nx + 0.5, ny + 0.5];
   }
 
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];

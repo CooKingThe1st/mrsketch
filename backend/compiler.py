@@ -148,8 +148,23 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
     cos_r = math.cos(rad)
     sin_r = math.sin(rad)
 
-    xs = [nx]
-    ys = [ny]
+    # Standalone text nodes have no background shape at (nx, ny); their content is solely at the label offset
+    if node.type == 'text':
+        lox = (getattr(node, 'labelOffsetX', 0.0) if getattr(node, 'labelOffsetX', None) is not None else 0.0) * scale
+        loy = (getattr(node, 'labelOffsetY', 0.0) if getattr(node, 'labelOffsetY', None) is not None else 0.0) * scale
+        lx = nx + lox
+        ly = ny + loy
+        fsize = getattr(node, 'fontSize', 12.0) or 12.0
+        fsize_units = (fsize / 40.0) * scale
+        lines = (getattr(node, 'label', '') or '').split('\n')
+        line_count = max(1, len(lines))
+        max_chars = max([len(l) for l in lines] + [1])
+        half_w = max(0.2, max_chars * (fsize_units * 0.28))
+        half_h = max(0.15, line_count * (fsize_units * 0.45))
+        return (lx - half_w, ly - half_h, lx + half_w, ly + half_h)
+
+    xs = []
+    ys = []
 
     if node.type in ('rect', 'obstacle'):
         w = (getattr(node, 'width', 3.0) or 3.0) * scale
@@ -268,12 +283,22 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
 
     # Include label annotation offset if present
     if getattr(node, 'label', None) and node.label.strip():
-        is_shape = node.type in ('rect', 'circle', 'triangle', 'diamond', 'obstacle', 'text', 'alias')
+        is_shape = node.type in ('rect', 'circle', 'triangle', 'diamond', 'obstacle', 'alias')
         default_off = 0.0 if is_shape else 0.3
         lox = (getattr(node, 'labelOffsetX', default_off) if getattr(node, 'labelOffsetX', None) is not None else default_off) * scale
         loy = (getattr(node, 'labelOffsetY', default_off) if getattr(node, 'labelOffsetY', None) is not None else default_off) * scale
-        xs.extend([nx + lox - 0.3, nx + lox + 0.3])
-        ys.extend([ny + loy - 0.3, ny + loy + 0.3])
+        fsize = getattr(node, 'fontSize', 12.0) or 12.0
+        fsize_units = (fsize / 40.0) * scale
+        lines = node.label.split('\n')
+        line_count = max(1, len(lines))
+        max_chars = max([len(l) for l in lines] + [1])
+        half_w = max(0.2, max_chars * (fsize_units * 0.28))
+        half_h = max(0.15, line_count * (fsize_units * 0.45))
+        xs.extend([nx + lox - half_w, nx + lox + half_w])
+        ys.extend([ny + loy - half_h, ny + loy + half_h])
+
+    if not xs or not ys:
+        return (nx - 0.5, ny - 0.5, nx + 0.5, ny + 0.5)
 
     return (min(xs), min(ys), max(xs), max(ys))
 
