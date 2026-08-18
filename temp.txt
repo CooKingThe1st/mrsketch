@@ -1,0 +1,180 @@
+🏗️ System Architecture & Workflow
++---------------------------------------------------------------------------------------+
+|                                    VITE FRONTEND                                      |
+|                                                                                       |
+|  +--------------------+   +------------------------------------+   +---------------+  |
+|  | Components Panel   |   |        React-Konva Stage           |   | Output        |  |
+|  |                    |   |                                    |   | Preview       |  |
+|  | [Robot Instance 1] |   |   (Robot 1) ---\zcontactnormal{i}  |   |               |  |
+|  | [Robot Instance 2] |   |                                    |   | [ Live        |  |
+|  |                    |   |      / \  Obstacle                 |   |   Matplotlib  |  |
+|  | [Line / Vector]    |   |     +---+ \znetwrenchspace         |   |   PNG/PDF ]   |  |
+|  +--------------------+   +------------------------------------+   +---------------+  |
++---------------------------------------------------------------------------------------+
+           │                                                                 ▲
+           │ (Debounced layout payload containing coordinates & macros)      │
+           ▼                                                                 │
++----------------------------------------------------------------------------+----------+
+|                                  LOCAL PYTHON BACKEND                                 |
+|                                                                                       |
+|  1. Fast API endpoint receives payload                                                |
+|  2. Matches layout coordinates to matplotlib.patches & Line2D objects                 |
+|  3. Runs LaTeX engine (usetex=True) to render publication fonts                        |
+|  4. Exports high-fidelity layout to user filesystem & updates web preview view       |
++---------------------------------------------------------------------------------------+
+🗂️ Project Repository Structure
+Plaintext
+scientific-sketch/
+├── frontend/                     # Vite + React Web Application
+│   ├── package.json
+│   ├── index.html
+│   ├── src/
+│   │   ├── main.tsx
+│   │   ├── App.tsx
+│   │   ├── components/
+│   │   │   ├── CanvasStage.tsx   # React-Konva drag-and-drop engine
+│   │   │   ├── MacroEditor.tsx   # LaTeX macro definitions manager
+│   │   │   ├── Sidebar.tsx       # Component asset manager & styling adjustments
+│   │   │   └── LivePreview.tsx   # Live viewport displaying Matplotlib output
+│   │   ├── hooks/
+│   │   │   └── useMacroParser.ts # Handles autocompletions & substitution tokens
+│   │   └── types/
+│   │       └── schema.ts         # TypeScript layout data structure definitions
+└── backend/                      # Python Layout Compiler
+    ├── requirements.txt
+    ├── main.py                   # FastAPI server orchestrating runtime tasks
+    └── compiler.py               # Map JSON geometries directly to Matplotlib layers
+📝 Project Document: README.md
+Markdown
+# Scientific Sketch Link: Component-Driven Diagramming for Robotics
+
+An open-source, component-driven vector layout tool explicitly built for writing robotics and physics research papers. Design layout variations globally, input multi-parameter LaTeX macros with auto-suggest overlays, and view a live-updating, publication-ready Matplotlib output directly inside your browser workspace.
+
+## Key Features
+
+- **Component-Driven Geometry (Aliases):** Modify your core robot structural geometry in a dedicated tab; every instance placed across your layout updates instantly.
+- **Parameter-Aware LaTeX Core:** Paste your standard paper macros directly into the tool. Supports parameter brackets (e.g., `\zcontactnormal{i}`) with an active inline auto-suggest lookup dropdown.
+- **True Matplotlib Preview Pipeline:** Features a continuous, live background rendering loop. The layout on your web stage matches the vector PDF output file exactly.
+- **Scientific Primitives Library:** Draw precise vector arrays, dashed boundary walls, and geometric coordinates that map 1:1 with native Python math libraries.
+
+## Getting Started
+
+### 1. Backend Environment Setup
+Ensure you have a local LaTeX distribution installed on your system (such as TeX Live or MiKTeX) so Matplotlib can access native system fonts.
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+2. Frontend Development Setup
+Bash
+cd frontend
+npm install
+npm run dev
+
+---
+
+## 🛠️ Implementation Guidance
+
+### Phase 1: The Layout Definition Scheme
+Define the layout configuration in `frontend/src/types/schema.ts` before building the user interface layers. This guarantees smooth serialization across the web and Python development domains:
+
+```typescript
+export interface MacroDefinition {
+  command: string;      // ex: "\\zcontactnormal"
+  argsCount: number;    // ex: 1
+  template: string;     // ex: "\\hat{\\boldsymbol{n}}_{#1}"
+}
+
+export interface RobotDefinition {
+  id: string;
+  name: string;
+  primitives: Array<{
+    type: 'circle' | 'rect' | 'poly';
+    config: any; // Stored as relative local offsets from coordinate origin (0,0)
+  }>;
+}
+
+export interface SceneNode {
+  id: string;
+  type: 'alias' | 'obstacle' | 'vector' | 'line';
+  definitionId?: string; // Points directly to target RobotDefinition
+  x: number;
+  y: number;
+  rotation: number;
+  label?: string;        // Raw layout string containing macros, ex: "\zcontactnormal{1}"
+  style?: {
+    strokeWidth: number;
+    strokeStyle: 'solid' | 'dashed' | 'dotted';
+    color: string;
+  };
+}
+
+export interface ProjectLayout {
+  macros: Record<string, MacroDefinition>;
+  definitions: Record<string, RobotDefinition>;
+  scene: SceneNode[];
+  exportBounds: { xMin: number; yMin: number; xMax: number; yMax: number };
+}
+Phase 2: Building the Canvas Layer (React-Konva)
+The Component Container Archetype: When rendering an alias node, place a localized <Konva.Group> element at the specified (x, y) coordinate offsets and apply the target rotation. Iterate through and draw its inner primitives using relative local coordinate positions.
+
+Handling User Selection Areas: Use standard <Konva.Rect> wrappers configured with drag handlers so users can visually define their export canvas bounds easily.
+
+Phase 3: The Python Renderer (backend/compiler.py)
+Below is the core rendering code for your local backend server. It parses the canvas geometry payload and outputs clean vector graphics:
+
+Python
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+# Enable native LaTeX font processing across the system layout
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "text.latex.preamble": r"\usepackage{amsmath}\usepackage{amssymb}\usepackage{bm}"
+})
+
+def compile_scene_to_vector(layout_data: dict, output_path: str = "output.png"):
+    fig, ax = plt.subplots(figsize=(7, 6))
+    
+    # Configure custom layout clipping windows
+    bounds = layout_data["exportBounds"]
+    ax.set_xlim(bounds["xMin"], bounds["xMax"])
+    ax.set_ylim(bounds["yMin"], bounds["yMax"])
+    ax.set_aspect('equal')
+    
+    # Inject your project preamble declarations dynamically
+    macro_preamble = ""
+    for cmd, macro in layout_data["macros"].items():
+        # Reconstruct standard formatting strings: \newcommand{\name}[args]{template}
+        macro_preamble += f"\\newcommand{{{cmd}}}[{macro['argsCount']}]{{{macro['template']}}}\n"
+
+    # Process individual layout nodes sequentially
+    for node in layout_data["scene"]:
+        # Handle custom line elements
+        if node["type"] == "line":
+            style_map = {'solid': '-', 'dashed': '--', 'dotted': ':'}
+            ax.plot(node["x_coords"], node["y_coords"], 
+                    color=node["style"]["color"], 
+                    linestyle=style_map.get(node["style"]["strokeStyle"], '-'),
+                    linewidth=node["style"]["strokeWidth"])
+            
+        # Handle LaTeX annotation labels
+        if node.get("label"):
+            full_latex_string = f"{macro_preamble}${node['label']}$"
+            ax.text(node["x"], node["y"], full_latex_string, fontsize=12, ha='center')
+
+    # Save cleanly clipped, publication-ready files
+    plt.savefig(output_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+🚀 Execution Strategy
+Stand up your workspace infrastructure: Create your Vite sandbox environment, hook up react-konva, and configure a clean layout canvas displaying basic draggable rectangles.
+
+Establish the Python server pipeline: Implement a local Python routine that reads a mockup JSON configuration file and outputs a cleanly compiled test image using Matplotlib.
+
+Connect the live data sync loop: Implement an automated network update script in Vite. Use a debounce interval (around 400ms) to automatically forward your layout configurations to the local server whenever changes are made on screen, updating the preview window instantly.
+
+Integrate the LaTeX completion engine: Build your text processing module to manage bracket parameters smoothly, and connect the output layers with your active Matplotlib preview pipeline.

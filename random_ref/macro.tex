@@ -1,0 +1,176 @@
+% --- notation_shared.tex ---
+\usepackage{etoolbox} % Required for the \ifblank logic
+
+% --- Logic to handle optional subscripts (Prevents double subscript errors) ---
+% Usage: \zrobotx{i} -> x_{r,i}  |  \zrobotx{} -> x_r
+\newcommand{\zrobotstate}[1]{\boldsymbol{q}_{r\ifblank{#1}{}{,#1}}}
+\newcommand{\zrobotx}[1]{x_{r\ifblank{#1}{}{,#1}}}
+\newcommand{\zroboty}[1]{y_{r\ifblank{#1}{}{,#1}}}
+\newcommand{\zrobotorientation}[1]{\theta_{r\ifblank{#1}{}{,#1}}}
+\newcommand{\zrobotvelocity}[1]{\boldsymbol{v}_{r\ifblank{#1}{}{,#1}}}
+\newcommand{\zcontactpointidx}[1]{\boldsymbol{cp}_{#1}}
+
+% --- Object Properties ---
+\newcommand{\zmass}{m}
+\newcommand{\zinertia}{I_{cm}}
+\newcommand{\zcom}{O_{cm}}
+\newcommand{\zobjectfullstate}{\mathcal{X}}
+\newcommand{\zobjectvelocity}{\mathcal{V}}
+\newcommand{\zvelox}{\dot{x}}
+\newcommand{\zveloy}{\dot{y}}
+\newcommand{\zvelotheta}{\dot{\theta}}
+\newcommand{\zrotationmatrix}{\boldsymbol{\mathcal{R}}}
+\newcommand{\zobjectorientation}{\theta}
+\newcommand{\zobjectmassmatrix}{\boldsymbol{M}_{\mathcal{O}}}
+\newcommand{\zobjectx}{x_{\mathcal{O}}}
+\newcommand{\zobjecty}{y_{\mathcal{O}}}
+\newcommand{\zobjectedge}{E}
+\newcommand{\zobjectedges}{E}
+\newcommand{\zobjectcontactpatch}{\mathcal{P}_{contact}}
+\newcommand{\zobjectcontactradius}{r_{\mathrm{eq}}}
+\newcommand{\zobjectoccupiedarea}{\mathcal{A}_{\mathcal{O}}}
+\newcommand{\zobject}{\mathcal{O}}
+
+
+\newcommand{\zlsmatrix}{\boldsymbol{\mathcal{Q}}} % The diag(c^2, c^2, 1) matrix
+\newcommand{\zpurex}{f_x}
+\newcommand{\zpurey}{f_y}
+\newcommand{\zpurem}{m}
+
+% --- Robot Properties ---
+\newcommand{\zrobot}{\boldsymbol{r}}
+\newcommand{\zrobottotal}{N_{robot}}
+\newcommand{\zrobotset}{\mathcal{R}}
+\newcommand{\zrobotradius}{r_{robot}}
+\newcommand{\zrobotcenter}{\boldsymbol{p}_{r}}
+\newcommand{\zrobotforce}{\boldsymbol{f}}
+\newcommand{\zrobotleverarm}{\boldsymbol{r}}
+\newcommand{\zrobotwrench}{\boldsymbol{w}}
+\newcommand{\zrobotforcedirection}{\boldsymbol{d}}
+\newcommand{\zrobotforcemagnitude}{f}
+\newcommand{\zrobotforcevector}{\boldsymbol{f}^{robot}}
+\newcommand{\zrobotvelox}{v_{x,r}}
+\newcommand{\zrobotveloy}{v_{y,r}}
+\newcommand{\zrobotvelotheta}{\omega_{r}}
+\newcommand{\zrobotoccupiedarea}{\mathcal{A}_{r}}
+
+
+
+% --- Indexed robot/force sets (from original) ---
+\newcommand{\zrobotforcesetidx}[1]{\mathcal{F}_{#1}}
+\newcommand{\zrobotforceidx}[1]{\boldsymbol{f}_{#1}}
+\newcommand{\znormalmagidx}[1]{f_{n,#1}}
+\newcommand{\ztangentmagidx}[1]{f_{t,#1}}
+% Control Input Notation
+\newcommand{\zcontrol}[1]{\mathbf{u}_{\ifblank{#1}{}{#1}}}
+
+% --- Misc dynamics/estimation ---
+\newcommand{\zdisturbance}{\boldsymbol{d}_{disturbance}}
+\newcommand{\zjacobian}{\boldsymbol{J}}
+\newcommand{\zgravity}{\boldsymbol{g}}
+\newcommand{\zobstacles}{\mathcal{O}}
+\newcommand{\ztaskspace}[1]{\mathcal{R}^{#1}}
+% --- Friction & Limit Surface ---
+\newcommand{\zfrictionlateral}{\mu_{lateral}}
+\newcommand{\zfrictionforce}{\mu}
+\newcommand{\zfrictiontorque}{\mu_{torque}}
+\newcommand{\zfrictionground}{\mu_{ground}}
+\newcommand{\znormalf}{\boldsymbol{f_n}}
+\newcommand{\ztangentf}{\boldsymbol{f_t}}
+\newcommand{\zfrictionwrenchspace}{\mathcal{W}_{fric}}
+\newcommand{\zlsfmax}{f_{\max}^{LS}}
+\newcommand{\zlsmmax}{m_{\max}^{LS}}
+\newcommand{\zlsshapeparameter}{c}
+
+% --- Applied force / net force / wrenches ---
+\newcommand{\zappforcex}{F_{app, x}}
+\newcommand{\zappforcey}{F_{app, y}}
+\newcommand{\zappmoment}{M_{app}}
+\newcommand{\znetforce}{\boldsymbol{F}_{net}}
+\newcommand{\znetforcex}{\boldsymbol{F}_{net,x}}
+\newcommand{\znetforcey}{\boldsymbol{F}_{net,y}}
+\newcommand{\znettorque}{\boldsymbol{\tau}_{net}}
+\newcommand{\znetwrench}{\boldsymbol{W}_{net}}
+\newcommand{\znetwrenchspace}{\mathcal{W}_{net}}
+
+% --- Phase 2: Tracking / Contact-Frame Control ---
+\newcommand{\zobjtwist}{\boldsymbol{v}^{*}_{\mathcal{O}}}
+\newcommand{\zobjomega}{\omega^{*}_{\mathcal{O}}}
+\newcommand{\zcontactvelo}[1]{\boldsymbol{v}_{c,#1}^{*}}
+\newcommand{\zcontactnormal}[1]{\hat{\boldsymbol{n}}_{#1}}
+\newcommand{\zcontacttangent}[1]{\hat{\boldsymbol{\tau}}_{#1}}
+\newcommand{\zvpar}[1]{v_{\parallel,#1}}
+\newcommand{\zvperp}[1]{v_{\perp,#1}}
+\newcommand{\zwheelvelo}[1]{\omega_{#1}^{\mathrm{wheel}}}
+
+% --- AFC / Degeneracy Screening ---
+\newcommand{\zafcthreshold}{T}
+\newcommand{\zhwscalar}{\lambda}
+\newcommand{\zdegenindex}{D}
+\newcommand{\zeigval}[1]{\sigma_{#1}}
+\newcommand{\zkappa}{\kappa}
+
+% --- Contact & Wrench ---
+\newcommand{\zforcebound}{f_{\max}}
+\newcommand{\zforcethreshold}{F_{\mathrm{threshold}}}
+\newcommand{\zforcestatic}{F_{\mathrm{static}}}
+\newcommand{\zgrasp}{\boldsymbol{G}}
+\newcommand{\zgraspcol}[1]{\boldsymbol{g}_{#1}}
+\newcommand{\zforcevector}{\boldsymbol{f}^{r}}
+\newcommand{\zcumulativewrench}{\boldsymbol{W}_{push}}
+\newcommand{\zfrictionwrench}{\boldsymbol{W}_{fric}}
+\newcommand{\zwrenchspace}{\mathcal{W}}
+\newcommand{\zconfig}{C}
+\newcommand{\zreqwrench}{\boldsymbol{W}_{req}}
+\newcommand{\zcontactpoints}{\mathcal{C}}
+\newcommand{\zcontactpointstotal}{N_c}
+\newcommand{\zcontactpoint}{cp}
+
+% --- Frames and Workspace ---
+\newcommand{\zlocalframe}{\mathcal{L}}
+\newcommand{\zglobalframe}{\mathcal{G}}
+\newcommand{\zoriginalworkspace}{\mathcal{W}_0}
+\newcommand{\zworkspace}{\mathcal{W}}
+\newcommand{\zfreespace}{\mathcal{F}_{\mathrm{free}}}
+
+% --- Path / Trajectory ---
+\newcommand{\zpath}{\mathcal{P}}
+\newcommand{\zpathparam}{\mathcal{T}}
+\newcommand{\zpathparamvelo}{v^{p}}
+\newcommand{\zhorizon}{T}
+\newcommand{\zpathlength}{L_{\mathcal{P}}}
+\newcommand{\zpathx}{x_{\mathcal{P}}}
+\newcommand{\zpathy}{y_{\mathcal{P}}}
+\newcommand{\zpaththeta}{\theta_{\mathcal{P}}}
+\newcommand{\zpathtangent}{d_{\mathcal{P}}}
+\newcommand{\zcrosstrack}{e_{cross}}
+\newcommand{\zalongtrack}{e_{along}}
+\newcommand{\zsamplingtime}{\Delta t}
+\newcommand{\zcostfunction}{J}
+\newcommand{\zweight}{w}
+
+% --- Edge parameterization / optimization variables ---
+\newcommand{\zedgeparam}{t}
+\newcommand{\zedgestart}{\boldsymbol{p}_{start}}
+\newcommand{\zedgedirection}{\boldsymbol{d}_{edge}}
+\newcommand{\zedgenormal}{\boldsymbol{n}}
+\newcommand{\zedgetangent}{\boldsymbol{t}}
+\newcommand{\znormalmag}{\alpha}
+\newcommand{\ztangentmag}{\beta}
+\newcommand{\zedgeactive}{n_{E}}
+\newcommand{\zedgelimit}{N_{\max}}
+
+% --- Math / Sets ---
+\newcommand{\zrr}{\mathbb{R}^2}
+\newcommand{\zrrr}{\mathbb{R}^3}
+\newcommand{\zse}{\mathrm{SE}(2)}
+
+% --- Custom Colors ---
+\newcommand{\bluepar}[1]{\color{blue}{#1}\color{black}}
+\newcommand{\redpar}[1]{\color{red}{#1}\color{black}}
+\newcommand{\greenpar}[1]{\color{green}{#1}\color{black}}
+
+% --- Team / Aggregate Descriptors ---
+\newcommand{\zrobotteam}{\mathcal{R}(\zrobottotal, \zforcebound, \zrobotradius, \zcontrol{i})}
+\newcommand{\zbudget}{\sum |\zrobotforce_i| \ge \zforcestatic}
+\newcommand{\zarea}{\bigcup \zrobotoccupiedarea_i \subset \zfreespace}
