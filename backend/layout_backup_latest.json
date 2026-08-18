@@ -816,7 +816,9 @@
               ]
             ],
             "strokeColor": "#06b6d4",
-            "fillColor": "#cffaff"
+            "fillColor": "#cffaff",
+            "x": 0,
+            "y": 0
           }
         }
       ]
@@ -840,7 +842,7 @@
     "marginPadding": 0,
     "cropToContent": true,
     "cropPadding": 0.05,
-    "renderMathOnCanvas": true
+    "renderMathOnCanvas": false
   },
   "exportBounds": {
     "xMin": -14.4,

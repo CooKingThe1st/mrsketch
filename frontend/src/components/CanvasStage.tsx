@@ -445,6 +445,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
   // Helper to compute all special guidance snap points for shapes in scientific coordinates
   const getGuidanceSnapPoints = (): Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> => {
+    if (mode === 'robot_designer') return [];
     const points: Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> = [];
 
     scene.forEach((node) => {
@@ -469,32 +470,36 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           const t = k / (N + 1);
           const px = p0[0] + t * (p1[0] - p0[0]);
           const py = p0[1] + t * (p1[1] - p0[1]);
-          points.push(rotatePoint(px, py, `${edgePrefix}_int_${k}`));
+          points.push(rotatePoint(px, py, `${edgePrefix}_${k}`));
         }
       };
 
       if (node.type === 'rect' || node.type === 'obstacle') {
-        const w = node.width || 3;
-        const h = node.height || 2;
+        const w = node.width || 4;
+        const h = node.height || 3;
         points.push({ sciX: node.x, sciY: node.y, nodeId: node.id, pointKey: 'center' });
-        addEdgePoints([-w / 2, -h / 2], [w / 2, -h / 2], 'edge_t');
-        addEdgePoints([w / 2, -h / 2], [w / 2, h / 2], 'edge_r');
-        addEdgePoints([w / 2, h / 2], [-w / 2, h / 2], 'edge_b');
-        addEdgePoints([-w / 2, h / 2], [-w / 2, -h / 2], 'edge_l');
+
+        // 4 Edges
+        addEdgePoints([-w / 2, h / 2], [w / 2, h / 2], 'edge_top');
+        addEdgePoints([w / 2, h / 2], [w / 2, -h / 2], 'edge_right');
+        addEdgePoints([w / 2, -h / 2], [-w / 2, -h / 2], 'edge_bottom');
+        addEdgePoints([-w / 2, -h / 2], [-w / 2, h / 2], 'edge_left');
       } else if (node.type === 'circle') {
-        const r = node.radius || 1.5;
+        const r = node.radius || 2;
         points.push({ sciX: node.x, sciY: node.y, nodeId: node.id, pointKey: 'center' });
-        const totalPoints = 4 * (N + 1);
-        for (let i = 0; i < totalPoints; i++) {
-          const angle = (i * 2 * Math.PI) / totalPoints;
-          const px = r * Math.cos(angle);
-          const py = r * Math.sin(angle);
-          points.push(rotatePoint(px, py, `circle_p${i}`));
-        }
+
+        // 8 Cardinal & Diagonal Points along circumference
+        const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+        angles.forEach((ang) => {
+          const aRad = (ang * Math.PI) / 180;
+          points.push(rotatePoint(r * Math.cos(aRad), r * Math.sin(aRad), `circ_${ang}`));
+        });
       } else if (node.type === 'diamond') {
-        const w = node.width || 3;
-        const h = node.height || 2;
+        const w = node.width || 4;
+        const h = node.height || 3;
         points.push({ sciX: node.x, sciY: node.y, nodeId: node.id, pointKey: 'center' });
+
+        // 4 Edges for Diamond: Top -> Right -> Bottom -> Left -> Top
         addEdgePoints([0, h / 2], [w / 2, 0], 'edge_tr');
         addEdgePoints([w / 2, 0], [0, -h / 2], 'edge_br');
         addEdgePoints([0, -h / 2], [-w / 2, 0], 'edge_bl');
@@ -598,7 +603,9 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       e.evt.stopPropagation();
       setIsPanning(true);
       setPanStart({ x: e.evt.clientX - panOffset.x, y: e.evt.clientY - panOffset.y });
+      return;
     }
+
     // Right-click (button === 2)
     if (e.evt.button === 2) {
       if (megaPoints.length >= 2) {
@@ -609,7 +616,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       }
 
       // Strict Right Double-Click detection for Quick Creation Popover Menu
-      if (drawingMode === 'select') {
+      if (drawingMode === 'select' && mode === 'main_scene') {
         const stage = e.target.getStage();
         const pointerPos = stage?.getPointerPosition();
         if (pointerPos) {
@@ -643,6 +650,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         setRightDragStart({ x: pointer.x, y: pointer.y });
         setRightDragEnd({ x: pointer.x, y: pointer.y });
       }
+      return;
     }
   };
 
@@ -964,6 +972,17 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   };
 
   const getAdaptiveGridStep = (scaleVal: number): number => {
+    if (mode === 'robot_designer') {
+      const zoomRatio = scaleVal / 40.0;
+      const steps = [5, 10, 20, 25, 50, 100, 200];
+      const targetPx = 25;
+      for (const st of steps) {
+        if (st * zoomRatio >= targetPx) {
+          return st;
+        }
+      }
+      return 200;
+    }
     const resMultiplier = plotOptions?.gridResolution ?? 1.0;
     const steps = [0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0];
     const targetPx = 30 * resMultiplier;
@@ -1000,8 +1019,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     for (let sx = minSciX; sx <= maxSciX; sx += unitStep) {
       const roundedX = Math.round(sx * 100) / 100;
       const px = toPixelX(roundedX);
-      const isAxis = Math.abs(roundedX) < 1e-5;
-      const isMajor = Math.abs(roundedX % 1) < 1e-5 || Math.abs((roundedX % 1) - 1) < 1e-5;
+      const isAxis = Math.abs(roundedX) < 1e-4;
+      const isMajor = mode === 'robot_designer'
+        ? Math.abs(roundedX % (unitStep * 4)) < 1e-4
+        : (Math.abs(roundedX % 1) < 1e-5 || Math.abs((roundedX % 1) - 1) < 1e-5);
 
       if (isAxis) {
         if (!showAxis) continue;
@@ -1025,8 +1046,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     for (let sy = minSciY; sy <= maxSciY; sy += unitStep) {
       const roundedY = Math.round(sy * 100) / 100;
       const py = toPixelY(roundedY);
-      const isAxis = Math.abs(roundedY) < 1e-5;
-      const isMajor = Math.abs(roundedY % 1) < 1e-5 || Math.abs((roundedY % 1) - 1) < 1e-5;
+      const isAxis = Math.abs(roundedY) < 1e-4;
+      const isMajor = mode === 'robot_designer'
+        ? Math.abs(roundedY % (unitStep * 4)) < 1e-4
+        : (Math.abs(roundedY % 1) < 1e-5 || Math.abs((roundedY % 1) - 1) < 1e-5);
 
       if (isAxis) {
         if (!showAxis) continue;
