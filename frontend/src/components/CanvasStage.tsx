@@ -1486,56 +1486,145 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
       return (
         <Group key={`${node.id}_handles_overlay`} x={px} y={py} rotation={node.rotation}>
-          {selectedNodeIds.includes(node.id) && !isSelected && (
-            <Circle
-              x={circleX}
-              y={circleY}
-              radius={(plotOptions?.grabHandleRadius ?? 14) * nodeScale * zoomRatio}
-              stroke="#a855f7"
-              strokeWidth={1.5}
-              dash={[4, 4]}
-              hitStrokeWidth={8}
-              onClick={(e) => {
-                if (drawingMode === 'select') {
-                  e.cancelBubble = true;
-                  if (e.evt.ctrlKey || e.evt.metaKey) {
-                    if (selectedNodeIds.includes(node.id)) {
-                      const newIds = selectedNodeIds.filter((id) => id !== node.id);
-                      onSelectNodes(newIds);
-                      onSelectNode(newIds.length > 0 ? newIds[newIds.length - 1] : null);
-                    } else {
-                      const newIds = [...selectedNodeIds, node.id];
-                      onSelectNodes(newIds);
-                      onSelectNode(node.id);
-                    }
+          {/* Dashed selection/move circle for translating entire node */}
+          <Circle
+            x={circleX}
+            y={circleY}
+            radius={(plotOptions?.grabHandleRadius ?? 14) * nodeScale * zoomRatio}
+            stroke={isSelected ? "#2563eb" : "#a855f7"}
+            strokeWidth={isSelected ? 2 : 1.5}
+            dash={[4, 4]}
+            hitStrokeWidth={12}
+            draggable
+            onMouseEnter={(e) => {
+              const stage = e.target.getStage();
+              if (stage) stage.container().style.cursor = 'move';
+            }}
+            onMouseLeave={(e) => {
+              const stage = e.target.getStage();
+              if (stage) stage.container().style.cursor = 'default';
+            }}
+            onClick={(e) => {
+              if (drawingMode === 'select') {
+                e.cancelBubble = true;
+                if (e.evt.ctrlKey || e.evt.metaKey) {
+                  if (selectedNodeIds.includes(node.id)) {
+                    const newIds = selectedNodeIds.filter((id) => id !== node.id);
+                    onSelectNodes(newIds);
+                    onSelectNode(newIds.length > 0 ? newIds[newIds.length - 1] : null);
                   } else {
+                    const newIds = [...selectedNodeIds, node.id];
+                    onSelectNodes(newIds);
                     onSelectNode(node.id);
-                    onSelectNodes([node.id]);
                   }
+                } else {
+                  onSelectNode(node.id);
+                  onSelectNodes([node.id]);
                 }
-              }}
-            />
-          )}
+              }
+            }}
+            onDragStart={(e) => {
+              e.cancelBubble = true;
+              if (e.evt.button !== 0) {
+                e.target.stopDrag();
+                return;
+              }
+              let activeIds = selectedNodeIds;
+              if (!selectedNodeIds.includes(node.id)) {
+                activeIds = [node.id];
+                onSelectNodes([node.id]);
+                onSelectNode(node.id);
+              }
+              const positions: Record<string, { x: number; y: number }> = {};
+              activeIds.forEach((id) => {
+                const n = scene.find((item) => item.id === id);
+                if (n) {
+                  positions[id] = { x: n.x, y: n.y };
+                }
+              });
+              dragInitialPositions.current = positions;
+            }}
+            onDragMove={(e) => {
+              e.cancelBubble = true;
+              const absPos = e.target.getAbsolutePosition();
+              const currentSciX = toSciX(absPos.x);
+              const currentSciY = toSciY(absPos.y);
+
+              const initPos = dragInitialPositions.current[node.id];
+              if (initPos) {
+                const dx = currentSciX - initPos.x;
+                const dy = currentSciY - initPos.y;
+                const activeIds = selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id];
+                activeIds.forEach((id) => {
+                  if (id === node.id) return;
+                  const nInit = dragInitialPositions.current[id];
+                  if (nInit) {
+                    const stage = e.target.getStage();
+                    const targetNode = stage?.findOne('#' + id);
+                    if (targetNode) {
+                      targetNode.x(toPixelX(nInit.x + dx));
+                      targetNode.y(toPixelY(nInit.y + dy));
+                    }
+                  }
+                });
+              }
+            }}
+            onDragEnd={(e) => {
+              e.cancelBubble = true;
+              const absPos = e.target.getAbsolutePosition();
+              e.target.position({ x: circleX, y: circleY });
+
+              const newSciX = Math.round(toSciX(absPos.x) * 100) / 100;
+              const newSciY = Math.round(toSciY(absPos.y) * 100) / 100;
+
+              const initPos = dragInitialPositions.current[node.id];
+              if (initPos) {
+                const dx = newSciX - initPos.x;
+                const dy = newSciY - initPos.y;
+                const activeIds = selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id];
+                const updatedGroup: SceneNode[] = [];
+                activeIds.forEach((id) => {
+                  const n = scene.find((item) => item.id === id);
+                  const nInit = dragInitialPositions.current[id];
+                  if (n && nInit) {
+                    updatedGroup.push({
+                      ...n,
+                      x: Math.round((nInit.x + dx) * 100) / 100,
+                      y: Math.round((nInit.y + dy) * 100) / 100,
+                    });
+                  }
+                });
+
+                let updatedScene = scene.map((n) => updatedGroup.find((u) => u.id === n.id) || n);
+                updatedScene = syncBoundNodesForGroup(updatedScene, updatedGroup);
+
+                if (onUpdateScene) {
+                  onUpdateScene(updatedScene);
+                } else if (onUpdateNodes && updatedGroup.length > 0) {
+                  onUpdateNodes(updatedGroup);
+                } else {
+                  updatedGroup.forEach(onUpdateNode);
+                }
+              } else {
+                const updatedNode = {
+                  ...node,
+                  x: newSciX,
+                  y: newSciY,
+                };
+                let updatedScene = scene.map((n) => n.id === node.id ? updatedNode : n);
+                updatedScene = syncBoundNodesForGroup(updatedScene, [updatedNode]);
+
+                if (onUpdateScene) {
+                  onUpdateScene(updatedScene);
+                } else {
+                  onUpdateNode(updatedNode);
+                }
+              }
+            }}
+          />
 
           {isSelected && (
             <>
-              <Circle
-                x={circleX}
-                y={circleY}
-                radius={(plotOptions?.grabHandleRadius ?? 14) * nodeScale * zoomRatio}
-                stroke="#2563eb"
-                strokeWidth={2}
-                dash={[4, 4]}
-                hitStrokeWidth={8}
-                onClick={(e) => {
-                  if (drawingMode === 'select') {
-                    e.cancelBubble = true;
-                    onSelectNode(node.id);
-                    onSelectNodes([node.id]);
-                  }
-                }}
-              />
-
               {/* Start Point Drag Handle for vector / line / super_vector / super_line */}
               {(node.type === 'vector' || node.type === 'line' || node.type === 'super_vector' || node.type === 'super_line') && (() => {
                 const pts = node.points || [0, 0, 3, 2];
@@ -1573,6 +1662,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                       e.cancelBubble = true;
                       setActiveSnapPreview(null);
                       const absPos = e.target.getAbsolutePosition();
+                      e.target.position({ x: 0, y: 0 });
                       const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
 
                       let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
@@ -1808,6 +1898,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                         let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
 
                         if (idx === 0) {
+                          e.target.position({ x: 0, y: 0 });
                           const oldStartSciX = node.x + (pts[0] || 0);
                           const oldStartSciY = node.y + (pts[1] || 0);
                           const shiftX = targetSciX - oldStartSciX;
