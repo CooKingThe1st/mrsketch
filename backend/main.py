@@ -75,6 +75,11 @@ def backup_load():
                 data = json.load(f)
             if isinstance(data, dict) and 'scene' in data:
                 return data
+        return {"status": "empty"}
+    except Exception as e:
+        print("Backend Backup Load Error:", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Serve built frontend static files in Docker / production if static directory exists
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(static_dir):
