@@ -10,6 +10,7 @@ import { StandalonePreview } from './components/StandalonePreview';
 import { ChangelogModal } from './components/ChangelogModal';
 import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid } from 'lucide-react';
 import { isDrawioContent, convertDrawioToProjectLayout } from './utils/drawioImporter';
+import { getApiBaseUrl } from './utils/api';
 
 const LOCAL_STORAGE_KEY = 'mrsketch_project_layout_v1';
 
@@ -19,7 +20,7 @@ const saveLayoutSafely = (layoutToSave: ProjectLayout) => {
     const jsonStr = JSON.stringify(layoutToSave);
     localStorage.setItem(LOCAL_STORAGE_KEY, jsonStr);
     localStorage.setItem('mrsketch_project_layout_backup_v1', jsonStr);
-    fetch('http://127.0.0.1:8000/api/backup-save', {
+    fetch(`${getApiBaseUrl()}/api/backup-save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: jsonStr,
@@ -326,7 +327,7 @@ export function App() {
 
   // On mount, auto-load backend disk backup if present and local scene is initial default
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/backup-load')
+    fetch(`${getApiBaseUrl()}/api/backup-load`)
       .then((res) => res.json())
       .then((data) => {
         if (data && Array.isArray(data.scene) && data.scene.length > 0) {
@@ -991,13 +992,14 @@ export function App() {
         x: 0,
         y: 0,
         radius: type === 'circle' ? 25 : undefined,
-        width: type === 'rect' ? 30 : undefined,
-        height: type === 'rect' ? 20 : undefined,
-        points: (type === 'vector' || type === 'line' || type === 'super_vector' || type === 'super_line') ? [0, 0, 40, 0] : undefined,
+        width: (type === 'rect' || type === 'diamond' || type === 'triangle') ? 30 : undefined,
+        height: (type === 'rect' || type === 'diamond') ? 20 : undefined,
+        triangleType: type === 'triangle' ? 'right_isosceles' : undefined,
+        points: (type === 'vector' || type === 'line' || type === 'super_vector' || type === 'super_line' || type === 'mega_vector' || type === 'mega_line') ? [0, 0, 40, 0] : undefined,
         controlPoint: (type === 'super_vector' || type === 'super_line') ? [20, 20] : undefined,
         lineShape: (type === 'super_vector' || type === 'super_line') ? 'curve' : undefined,
         vertices: type === 'poly' ? [[-20, -20], [20, -20], [0, 30]] : undefined,
-        strokeColor: '#3b82f6',
+        strokeColor: (type === 'vector' || type === 'super_vector' || type === 'mega_vector') ? '#ef4444' : '#3b82f6',
         fillColor: '#dbeafe',
       },
     };
@@ -1015,6 +1017,52 @@ export function App() {
       },
     });
     setSelectedPrimitiveIdx(updatedDef.primitives.length - 1);
+  };
+
+  const handleDuplicatePrimitive = (idx: number) => {
+    if (!activeRobotDefId || !layout.definitions[activeRobotDefId]) return;
+    const currentDef = layout.definitions[activeRobotDefId];
+    const sourcePrim = currentDef.primitives[idx];
+    if (!sourcePrim) return;
+
+    const clonedPrim: PrimitiveDefinition = {
+      ...sourcePrim,
+      id: `prim_${Date.now()}`,
+      config: {
+        ...sourcePrim.config,
+        x: (sourcePrim.config.x || 0) + 15,
+        y: (sourcePrim.config.y || 0) - 15,
+      },
+    };
+
+    const updatedPrims = [...currentDef.primitives, clonedPrim];
+    updateLayoutWithHistory({
+      ...layout,
+      definitions: {
+        ...layout.definitions,
+        [activeRobotDefId]: { ...currentDef, primitives: updatedPrims },
+      },
+    });
+    setSelectedPrimitiveIdx(updatedPrims.length - 1);
+  };
+
+  const handleUpdatePrimitives = (updates: Array<{ idx: number; prim: PrimitiveDefinition }>) => {
+    if (!activeRobotDefId || !layout.definitions[activeRobotDefId]) return;
+    const currentDef = layout.definitions[activeRobotDefId];
+    const updatedPrims = [...currentDef.primitives];
+    updates.forEach(({ idx, prim }) => {
+      if (idx >= 0 && idx < updatedPrims.length) {
+        updatedPrims[idx] = prim;
+      }
+    });
+
+    updateLayoutWithHistory({
+      ...layout,
+      definitions: {
+        ...layout.definitions,
+        [activeRobotDefId]: { ...currentDef, primitives: updatedPrims },
+      },
+    });
   };
 
   const handleImportComponentPrimitives = (sourceDefId: string) => {
@@ -1745,7 +1793,10 @@ export function App() {
             onAddPrimitive={handleAddPrimitive}
             onImportComponentPrimitives={handleImportComponentPrimitives}
             onDeletePrimitive={handleDeletePrimitive}
+            onDeletePrimitives={handleDeletePrimitives}
+            onDuplicatePrimitive={handleDuplicatePrimitive}
             onUpdatePrimitive={handleUpdatePrimitive}
+            onUpdatePrimitives={handleUpdatePrimitives}
             onUpdateDefinitions={handleUpdateDefinitions}
           />
         )}
@@ -1779,6 +1830,10 @@ export function App() {
               onUpdateNodes={handleUpdateNodes}
               onUpdateScene={(newScene) => updateLayoutWithHistory({ ...layout, scene: newScene })}
               onUpdatePrimitive={handleUpdatePrimitive}
+              onUpdatePrimitives={handleUpdatePrimitives}
+              onDeletePrimitive={handleDeletePrimitive}
+              onDeletePrimitives={handleDeletePrimitives}
+              onMovePrimitiveLayer={handleMovePrimitiveLayer}
               onUpdateExportBounds={handleUpdateExportBounds}
               onAddVectorOrLine={handleAddVectorOrLine}
               onAddMegaLine={handleAddMegaLine}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectLayout } from '../types/schema';
 import { filterLayoutForExport } from '../utils/aabbFilter';
+import { getApiBaseUrl } from '../utils/api';
 import { RefreshCw, Download, FileCode, CheckCircle2, AlertCircle, ExternalLink, Copy } from 'lucide-react';
 import { getCurrentExportFileName, consumeExportFileName, getCurrentExportBaseName } from '../utils/exportNaming';
 
@@ -11,7 +12,7 @@ interface LivePreviewProps {
 
 export const LivePreview: React.FC<LivePreviewProps> = ({
   layout,
-  backendUrl = 'http://127.0.0.1:8000',
+  backendUrl = getApiBaseUrl(),
 }) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);

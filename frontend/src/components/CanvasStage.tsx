@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Stage, Layer, Group, Rect, Circle, Line, Arrow, Text, Tag, Label } from 'react-konva';
 import type { SceneNode, RobotDefinition, ExportBounds, PrimitiveDefinition, PointBinding, PlotOptions, DrawingMode, PendingShapeToAdd, MacroDefinition } from '../types/schema';
-import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight, Trash2 } from 'lucide-react';
 import { syncBoundNodesForGroup } from '../App';
 import katex from 'katex';
 
@@ -127,6 +127,10 @@ interface CanvasStageProps {
   onAddTextEntity?: (x: number, y: number) => string | void;
   onAddPolygonPrimitive?: (vertices: Array<[number, number]>) => void;
   onDeleteNode?: (id: string) => void;
+  onUpdatePrimitives?: (updates: Array<{ idx: number; prim: PrimitiveDefinition }>) => void;
+  onDeletePrimitive?: (idx: number) => void;
+  onDeletePrimitives?: (idxs: number[]) => void;
+  onMovePrimitiveLayer?: (idx: number, direction: 'up' | 'down') => void;
 }
 
 export const CanvasStage: React.FC<CanvasStageProps> = ({
@@ -155,6 +159,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   onUpdateNodes,
   onUpdateScene,
   onUpdatePrimitive,
+  onUpdatePrimitives,
+  onDeletePrimitive,
+  onDeletePrimitives,
+  onMovePrimitiveLayer,
   onUpdateExportBounds,
   onAddVectorOrLine,
   onAddMegaLine,
@@ -168,13 +176,56 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const stageRef = useRef<any>(null);
 
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const [scale, setScale] = useState(40);
+  const [sceneViewport, setSceneViewport] = useState<{ scale: number; panOffset: { x: number; y: number } }>({
+    scale: 40,
+    panOffset: { x: 0, y: 0 },
+  });
+  const [designerViewports, setDesignerViewports] = useState<Record<string, { scale: number; panOffset: { x: number; y: number } }>>({});
   const [canvasBgTheme, setCanvasBgTheme] = useState<'light' | 'dark'>('light');
 
   // Panning State (Right-Click Drag)
-  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Resolve active viewport based on mode and component id
+  const currentViewport = mode === 'main_scene'
+    ? sceneViewport
+    : (activeRobotDefId && designerViewports[activeRobotDefId]
+        ? designerViewports[activeRobotDefId]
+        : { scale: 40, panOffset: { x: 0, y: 0 } });
+
+  const scale = currentViewport.scale;
+  const panOffset = currentViewport.panOffset;
+
+  const setScale = (action: number | ((s: number) => number)) => {
+    if (mode === 'main_scene') {
+      setSceneViewport((prev) => {
+        const nextScale = typeof action === 'function' ? action(prev.scale) : action;
+        return { ...prev, scale: nextScale };
+      });
+    } else if (activeRobotDefId) {
+      setDesignerViewports((prev) => {
+        const cur = prev[activeRobotDefId] || { scale: 40, panOffset: { x: 0, y: 0 } };
+        const nextScale = typeof action === 'function' ? action(cur.scale) : action;
+        return { ...prev, [activeRobotDefId]: { ...cur, scale: nextScale } };
+      });
+    }
+  };
+
+  const setPanOffset = (action: { x: number; y: number } | ((p: { x: number; y: number }) => { x: number; y: number })) => {
+    if (mode === 'main_scene') {
+      setSceneViewport((prev) => {
+        const nextPan = typeof action === 'function' ? action(prev.panOffset) : action;
+        return { ...prev, panOffset: nextPan };
+      });
+    } else if (activeRobotDefId) {
+      setDesignerViewports((prev) => {
+        const cur = prev[activeRobotDefId] || { scale: 40, panOffset: { x: 0, y: 0 } };
+        const nextPan = typeof action === 'function' ? action(cur.panOffset) : action;
+        return { ...prev, [activeRobotDefId]: { ...cur, panOffset: nextPan } };
+      });
+    }
+  };
 
   const [showKonvaGrid, setShowKonvaGrid] = useState<boolean>(true);
 
@@ -345,7 +396,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
     const zoomFactor = e.evt.deltaY < 0 ? 1.15 : 0.85;
     const oldScale = scale;
-    const newScale = Math.min(260, Math.max(10, Math.round(oldScale * zoomFactor)));
+    const newScale = Math.min(300, Math.max(10, Math.round(oldScale * zoomFactor)));
     if (newScale === oldScale) return;
 
     const factor = newScale / oldScale;
@@ -2978,7 +3029,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       const fill = prim.config.fillColor || '#dbeafe';
       const stroke = prim.config.strokeColor || '#3b82f6';
       const strokeOpacity = prim.config.strokeOpacity ?? 1.0;
-      const pw = (prim.config.strokeWidth ?? (prim.type === 'circle' || prim.type === 'rect' || prim.type === 'poly' ? 2 : 2.5)) * zoomRatio;
+      const pw = (prim.config.strokeWidth ?? (prim.type === 'circle' || prim.type === 'rect' || prim.type === 'poly' || prim.type === 'diamond' || prim.type === 'triangle' ? 2 : 2.5)) * zoomRatio;
       const dash = getStrokeDash(prim.config.strokeStyle);
 
       let primContent = null;
@@ -2992,6 +3043,21 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         const w = (prim.config.width || 30) * zoomRatio;
         const h = (prim.config.height || 30) * zoomRatio;
         primContent = <Rect x={-w / 2} y={-h / 2} width={w} height={h} fill={fill} stroke={stroke} opacity={strokeOpacity} strokeWidth={pw} dash={dash} />;
+      } else if (prim.type === 'diamond') {
+        const w = (prim.config.width || 30) * zoomRatio;
+        const h = (prim.config.height || 20) * zoomRatio;
+        primContent = <Line points={[0, -h / 2, w / 2, 0, 0, h / 2, -w / 2, 0]} closed fill={fill} stroke={stroke} opacity={strokeOpacity} strokeWidth={pw} dash={dash} />;
+      } else if (prim.type === 'triangle') {
+        const w = (prim.config.width || 30) * zoomRatio;
+        const triType = prim.config.triangleType || 'right_isosceles';
+        let triPts: number[] = [];
+        if (triType === 'equilateral') {
+          const h = w * 0.866;
+          triPts = [0, -h * 0.66, -w / 2, h * 0.33, w / 2, h * 0.33];
+        } else {
+          triPts = [-w / 3, -2 * w / 3, -w / 3, w / 3, (2 * w) / 3, w / 3];
+        }
+        primContent = <Line points={triPts} closed fill={fill} stroke={stroke} opacity={strokeOpacity} strokeWidth={pw} dash={dash} />;
       } else if (prim.type === 'poly' && prim.config.vertices) {
         const flatPoints = prim.config.vertices.flatMap(([vx, vy]) => [vx * zoomRatio, -vy * zoomRatio]);
         primContent = <Line points={flatPoints} closed fill={fill} stroke={stroke} opacity={strokeOpacity} strokeWidth={pw} dash={dash} />;
@@ -3068,6 +3134,56 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             />
           );
         }
+      } else if ((prim.type === 'mega_vector' || prim.type === 'mega_line') && prim.config.points) {
+        const raw = prim.config.points;
+        const scaledPts: number[] = [];
+        for (let k = 0; k < raw.length; k += 2) {
+          scaledPts.push(raw[k] * zoomRatio, -raw[k + 1] * zoomRatio);
+        }
+        if (prim.type === 'mega_line') {
+          primContent = (
+            <Line
+              points={scaledPts}
+              stroke={stroke}
+              strokeWidth={pw}
+              opacity={strokeOpacity}
+              dash={dash}
+              lineCap="round"
+              lineJoin="round"
+            />
+          );
+        } else {
+          const bodyPts = scaledPts.slice(0, -2);
+          const lastX = scaledPts[scaledPts.length - 2];
+          const lastY = scaledPts[scaledPts.length - 1];
+          const prevX = scaledPts[scaledPts.length - 4];
+          const prevY = scaledPts[scaledPts.length - 3];
+          primContent = (
+            <Group>
+              {bodyPts.length >= 4 && (
+                <Line
+                  points={bodyPts}
+                  stroke={stroke}
+                  strokeWidth={pw}
+                  opacity={strokeOpacity}
+                  dash={dash}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              )}
+              <Arrow
+                points={[prevX, prevY, lastX, lastY]}
+                stroke={stroke}
+                fill={stroke}
+                strokeWidth={pw}
+                opacity={strokeOpacity}
+                dash={dash}
+                pointerLength={8 * zoomRatio}
+                pointerWidth={8 * zoomRatio}
+              />
+            </Group>
+          );
+        }
       }
 
       return (
@@ -3092,8 +3208,16 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           }}
           onClick={(e) => {
             e.cancelBubble = true;
-            onSelectPrimitive(idx);
-            onSelectPrimitives([idx]);
+            if (e.evt.ctrlKey || e.evt.metaKey) {
+              const current = selectedPrimitiveIdxs.includes(idx)
+                ? selectedPrimitiveIdxs.filter((i) => i !== idx)
+                : [...selectedPrimitiveIdxs, idx];
+              onSelectPrimitives(current);
+              onSelectPrimitive(current.length > 0 ? current[current.length - 1] : null);
+            } else {
+              onSelectPrimitive(idx);
+              onSelectPrimitives([idx]);
+            }
           }}
           onDragEnd={(e) => {
             const newOx = Math.round((e.target.x() - originX) / zoomRatio);
@@ -3103,20 +3227,27 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               const dx = newOx - initPos.x;
               const dy = newOy - initPos.y;
               const activeIdxs = selectedPrimitiveIdxs.includes(idx) ? selectedPrimitiveIdxs : [idx];
-              activeIdxs.forEach((i) => {
+              const updates = activeIdxs.map((i) => {
                 const p = def.primitives[i];
-                const pInit = dragInitialPositions.current[String(i)];
-                if (p && pInit) {
-                  onUpdatePrimitive(i, {
+                const pInit = dragInitialPositions.current[String(i)] || { x: p.config.x || 0, y: p.config.y || 0 };
+                return {
+                  idx: i,
+                  prim: {
                     ...p,
                     config: {
                       ...p.config,
                       x: Math.round(pInit.x + dx),
                       y: Math.round(pInit.y + dy),
                     },
-                  });
-                }
+                  },
+                };
               });
+
+              if (onUpdatePrimitives) {
+                onUpdatePrimitives(updates);
+              } else {
+                updates.forEach(({ idx: i, prim: p }) => onUpdatePrimitive(i, p));
+              }
             } else {
               onUpdatePrimitive(idx, {
                 ...prim,
@@ -3133,49 +3264,123 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             <>
               <Circle radius={30 * zoomRatio} stroke="#ec4899" strokeWidth={2} dash={[4, 4]} />
 
-              {/* End Point Drag Handle for vector / line / super_vector / super_line primitives */}
-              {(prim.type === 'vector' || prim.type === 'line' || prim.type === 'super_vector' || prim.type === 'super_line') && (() => {
+              {/* Start Point & Dashed Move Handle for line/vector/super/mega primitives */}
+              {(prim.type === 'vector' || prim.type === 'line' || prim.type === 'super_vector' || prim.type === 'super_line' || prim.type === 'mega_vector' || prim.type === 'mega_line') && (() => {
                 const pts = prim.config.points || [0, 0, 40, 0];
+                const p1x = pts[0] * zoomRatio;
+                const p1y = -pts[1] * zoomRatio;
                 const p2x = pts[2] * zoomRatio;
                 const p2y = -pts[3] * zoomRatio;
 
                 return (
-                  <Circle
-                    x={p2x}
-                    y={p2y}
-                    radius={6}
-                    fill="#f472b6"
-                    stroke="#ffffff"
-                    strokeWidth={1.5}
-                    draggable
-                    onMouseEnter={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) stage.container().style.cursor = 'crosshair';
-                    }}
-                    onMouseLeave={(e) => {
-                      const stage = e.target.getStage();
-                      if (stage) stage.container().style.cursor = 'default';
-                    }}
-                    onDragEnd={(e) => {
-                      e.cancelBubble = true;
-                      let newP2X = Math.round(e.target.x() / zoomRatio);
-                      let newP2Y = Math.round(-e.target.y() / zoomRatio);
+                  <Group key={`prim_line_handles_${idx}`}>
+                    {/* Draggable Dashed Move Handle for translating whole line */}
+                    <Circle
+                      x={p1x}
+                      y={p1y}
+                      radius={12}
+                      stroke="#0ea5e9"
+                      strokeWidth={1.5}
+                      dash={[3, 3]}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'move';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        const deltaX = Math.round((e.target.x() - p1x) / zoomRatio);
+                        const deltaY = Math.round((-e.target.y() - (-p1y)) / zoomRatio);
+                        e.target.position({ x: p1x, y: p1y }); // Snap back handle relative to group
+                        onUpdatePrimitive(idx, {
+                          ...prim,
+                          config: {
+                            ...prim.config,
+                            x: (prim.config.x || 0) + deltaX,
+                            y: (prim.config.y || 0) + deltaY,
+                          },
+                        });
+                      }}
+                    />
 
-                      if (e.evt && (e.evt.ctrlKey || e.evt.metaKey)) {
-                        const [sdnX, sdnY] = snapTo45Degrees(pts[0], pts[1], newP2X, newP2Y);
-                        newP2X = Math.round(sdnX);
-                        newP2Y = Math.round(sdnY);
-                      }
+                    {/* Start Point Drag Handle (Green) */}
+                    <Circle
+                      x={p1x}
+                      y={p1y}
+                      radius={5.5}
+                      fill="#10b981"
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'crosshair';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        let newP1X = Math.round(e.target.x() / zoomRatio);
+                        let newP1Y = Math.round(-e.target.y() / zoomRatio);
+                        if (e.evt && (e.evt.ctrlKey || e.evt.metaKey)) {
+                          const [sdnX, sdnY] = snapTo45Degrees(pts[2], pts[3], newP1X, newP1Y);
+                          newP1X = Math.round(sdnX);
+                          newP1Y = Math.round(sdnY);
+                        }
+                        onUpdatePrimitive(idx, {
+                          ...prim,
+                          config: {
+                            ...prim.config,
+                            points: [newP1X, newP1Y, pts[2], pts[3]],
+                          },
+                        });
+                      }}
+                    />
 
-                      onUpdatePrimitive(idx, {
-                        ...prim,
-                        config: {
-                          ...prim.config,
-                          points: [pts[0], pts[1], newP2X, newP2Y],
-                        },
-                      });
-                    }}
-                  />
+                    {/* End Point Drag Handle (Sky Blue) */}
+                    <Circle
+                      x={p2x}
+                      y={p2y}
+                      radius={6}
+                      fill="#38bdf8"
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'crosshair';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        let newP2X = Math.round(e.target.x() / zoomRatio);
+                        let newP2Y = Math.round(-e.target.y() / zoomRatio);
+
+                        if (e.evt && (e.evt.ctrlKey || e.evt.metaKey)) {
+                          const [sdnX, sdnY] = snapTo45Degrees(pts[0], pts[1], newP2X, newP2Y);
+                          newP2X = Math.round(sdnX);
+                          newP2Y = Math.round(sdnY);
+                        }
+
+                        onUpdatePrimitive(idx, {
+                          ...prim,
+                          config: {
+                            ...prim.config,
+                            points: [pts[0], pts[1], newP2X, newP2Y],
+                          },
+                        });
+                      }}
+                    />
+                  </Group>
                 );
               })()}
 
@@ -3196,7 +3401,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                   <Group key={`prim_super_guidance_${idx}`}>
                     <Line
                       points={[p1x, p1y, hcx, hcy, p2x, p2y]}
-                      stroke="#ec4899"
+                      stroke="#f59e0b"
                       strokeWidth={1}
                       dash={[3, 3]}
                       opacity={0.6}
@@ -3206,7 +3411,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                       y={hcy - 4}
                       width={8}
                       height={8}
-                      fill="#f472b6"
+                      fill="#f59e0b"
                       stroke="#ffffff"
                       strokeWidth={1.5}
                       draggable
@@ -3235,19 +3440,156 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 );
               })()}
 
-              {/* End Point / Corner Drag Handle for rect primitive */}
+              {/* Dual-Corner Drag Handles for rect primitive */}
               {prim.type === 'rect' && (() => {
                 const w = (prim.config.width || 30) * zoomRatio;
                 const h = (prim.config.height || 30) * zoomRatio;
-                const rx = w / 2;
-                const ry = h / 2;
+
+                return (
+                  <Group key={`prim_rect_handles_${idx}`}>
+                    {/* Top-Left Handle (Green) */}
+                    <Circle
+                      x={-w / 2}
+                      y={-h / 2}
+                      radius={5.5}
+                      fill="#10b981"
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'nwse-resize';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        const newW = Math.max(5, Math.round(Math.abs(e.target.x()) * 2 / zoomRatio));
+                        const newH = Math.max(5, Math.round(Math.abs(e.target.y()) * 2 / zoomRatio));
+                        onUpdatePrimitive(idx, {
+                          ...prim,
+                          config: {
+                            ...prim.config,
+                            width: newW,
+                            height: newH,
+                          },
+                        });
+                      }}
+                    />
+                    {/* Bottom-Right Handle (Sky Blue) */}
+                    <Circle
+                      x={w / 2}
+                      y={h / 2}
+                      radius={6}
+                      fill="#38bdf8"
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'nwse-resize';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        const newW = Math.max(5, Math.round((e.target.x() * 2) / zoomRatio));
+                        const newH = Math.max(5, Math.round((e.target.y() * 2) / zoomRatio));
+                        onUpdatePrimitive(idx, {
+                          ...prim,
+                          config: {
+                            ...prim.config,
+                            width: newW,
+                            height: newH,
+                          },
+                        });
+                      }}
+                    />
+                  </Group>
+                );
+              })()}
+
+              {/* Dual-Axis Handles for diamond primitive */}
+              {prim.type === 'diamond' && (() => {
+                const w = (prim.config.width || 30) * zoomRatio;
+                const h = (prim.config.height || 20) * zoomRatio;
+
+                return (
+                  <Group key={`prim_diamond_handles_${idx}`}>
+                    {/* Top Height Handle (Green) */}
+                    <Circle
+                      x={0}
+                      y={-h / 2}
+                      radius={5.5}
+                      fill="#10b981"
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'ns-resize';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        const newH = Math.max(5, Math.round(Math.abs(e.target.y()) * 2 / zoomRatio));
+                        onUpdatePrimitive(idx, {
+                          ...prim,
+                          config: { ...prim.config, height: newH },
+                        });
+                      }}
+                    />
+                    {/* Right Width Handle (Sky Blue) */}
+                    <Circle
+                      x={w / 2}
+                      y={0}
+                      radius={6}
+                      fill="#38bdf8"
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                      draggable
+                      onMouseEnter={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'ew-resize';
+                      }}
+                      onMouseLeave={(e) => {
+                        const stage = e.target.getStage();
+                        if (stage) stage.container().style.cursor = 'default';
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        const newW = Math.max(5, Math.round(Math.abs(e.target.x()) * 2 / zoomRatio));
+                        onUpdatePrimitive(idx, {
+                          ...prim,
+                          config: { ...prim.config, width: newW },
+                        });
+                      }}
+                    />
+                  </Group>
+                );
+              })()}
+
+              {/* Triangle Corner Width Handle */}
+              {prim.type === 'triangle' && (() => {
+                const w = (prim.config.width || 30) * zoomRatio;
+                const triType = prim.config.triangleType || 'right_isosceles';
+                const hx = triType === 'equilateral' ? w / 2 : (2 * w) / 3;
+                const hy = triType === 'equilateral' ? (w * 0.866) * 0.33 : w / 3;
 
                 return (
                   <Circle
-                    x={rx}
-                    y={ry}
+                    key={`prim_triangle_handles_${idx}`}
+                    x={hx}
+                    y={hy}
                     radius={6}
-                    fill="#f472b6"
+                    fill="#38bdf8"
                     stroke="#ffffff"
                     strokeWidth={1.5}
                     draggable
@@ -3261,15 +3603,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                     }}
                     onDragEnd={(e) => {
                       e.cancelBubble = true;
-                      const newW = Math.max(5, Math.round((e.target.x() * 2) / zoomRatio));
-                      const newH = Math.max(5, Math.round((e.target.y() * 2) / zoomRatio));
+                      const newW = Math.max(5, Math.round(Math.abs(e.target.x()) * 1.5 / zoomRatio));
                       onUpdatePrimitive(idx, {
                         ...prim,
-                        config: {
-                          ...prim.config,
-                          width: newW,
-                          height: newH,
-                        },
+                        config: { ...prim.config, width: newW },
                       });
                     }}
                   />
@@ -3284,7 +3621,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                     x={r}
                     y={0}
                     radius={6}
-                    fill="#f472b6"
+                    fill="#10b981"
                     stroke="#ffffff"
                     strokeWidth={1.5}
                     draggable
@@ -3599,7 +3936,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         </button>
         <span className="w-16 text-center text-indigo-400 font-mono">{scale} px/unit</span>
         <button
-          onClick={() => setScale((s) => Math.min(260, s + 5))}
+          onClick={() => setScale((s) => Math.min(300, s + 5))}
           className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-200"
         >
           +
@@ -4397,6 +4734,355 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 <span>Bot Lyer</span>
               </button>
             </div>
+          </div>
+        );
+      })()}
+
+      {/* Robot Designer Quick Edit Bar */}
+      {mode === 'robot_designer' && activeRobotDefId && definitions[activeRobotDefId] && (selectedPrimitiveIdx !== null || selectedPrimitiveIdxs.length > 0) && (() => {
+        const def = definitions[activeRobotDefId];
+        const activeIdxs = selectedPrimitiveIdxs.length > 0 ? selectedPrimitiveIdxs : (selectedPrimitiveIdx !== null ? [selectedPrimitiveIdx] : []);
+        const primaryPrim = def.primitives[activeIdxs[0]];
+        if (!primaryPrim) return null;
+
+        const applyColorPreset = (strokeColor: string, fillColor: string) => {
+          const updates = activeIdxs.map((i) => {
+            const p = def.primitives[i];
+            return {
+              idx: i,
+              prim: {
+                ...p,
+                config: { ...p.config, strokeColor, fillColor },
+              },
+            };
+          });
+          if (onUpdatePrimitives) onUpdatePrimitives(updates);
+          else updates.forEach(({ idx: i, prim: p }) => onUpdatePrimitive(i, p));
+        };
+
+        const applyStrokeStyle = (strokeStyle: 'solid' | 'dashed' | 'dashdot') => {
+          const updates = activeIdxs.map((i) => {
+            const p = def.primitives[i];
+            return {
+              idx: i,
+              prim: {
+                ...p,
+                config: { ...p.config, strokeStyle },
+              },
+            };
+          });
+          if (onUpdatePrimitives) onUpdatePrimitives(updates);
+          else updates.forEach(({ idx: i, prim: p }) => onUpdatePrimitive(i, p));
+        };
+
+        const applyStrokeWidth = (strokeWidth: number) => {
+          const updates = activeIdxs.map((i) => {
+            const p = def.primitives[i];
+            return {
+              idx: i,
+              prim: {
+                ...p,
+                config: { ...p.config, strokeWidth },
+              },
+            };
+          });
+          if (onUpdatePrimitives) onUpdatePrimitives(updates);
+          else updates.forEach(({ idx: i, prim: p }) => onUpdatePrimitive(i, p));
+        };
+
+        const applyLineShape = (lineShape: 'straight' | 'curve') => {
+          const updates = activeIdxs.map((i) => {
+            const p = def.primitives[i];
+            return {
+              idx: i,
+              prim: {
+                ...p,
+                config: { ...p.config, lineShape },
+              },
+            };
+          });
+          if (onUpdatePrimitives) onUpdatePrimitives(updates);
+          else updates.forEach(({ idx: i, prim: p }) => onUpdatePrimitive(i, p));
+        };
+
+        const curStrokeStyle = primaryPrim.config.strokeStyle || 'solid';
+        const curStrokeWidth = primaryPrim.config.strokeWidth ?? (primaryPrim.type === 'circle' || primaryPrim.type === 'rect' || primaryPrim.type === 'poly' || primaryPrim.type === 'diamond' || primaryPrim.type === 'triangle' ? 2 : 2.5);
+        const isSuperOrMega = primaryPrim.type === 'super_vector' || primaryPrim.type === 'super_line' || primaryPrim.type === 'mega_vector' || primaryPrim.type === 'mega_line';
+
+        return (
+          <div className="absolute top-16 left-4 z-30 bg-slate-900/95 backdrop-blur border border-slate-700/90 rounded-xl p-2.5 flex items-center gap-3.5 shadow-2xl text-xs text-slate-200">
+            <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider px-1">Part Edit:</span>
+
+            {/* 5 Color Presets */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-slate-400 font-semibold">Color:</span>
+              <button
+                title="Black / White Preset"
+                onClick={() => applyColorPreset('#000000', '#ffffff')}
+                className="w-5 h-5 rounded border border-slate-600 bg-white shadow hover:scale-110 transition flex items-center justify-center text-[9px] font-bold text-black"
+              >
+                B/W
+              </button>
+              <button
+                title="Red Preset"
+                onClick={() => applyColorPreset('#ef4444', '#fee2e2')}
+                className="w-5 h-5 rounded border border-red-500 bg-red-100 hover:scale-110 transition flex items-center justify-center"
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              </button>
+              <button
+                title="Blue Preset"
+                onClick={() => applyColorPreset('#3b82f6', '#dbeafe')}
+                className="w-5 h-5 rounded border border-blue-500 bg-blue-100 hover:scale-110 transition flex items-center justify-center"
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              </button>
+              <button
+                title="Yellow / Amber Preset"
+                onClick={() => applyColorPreset('#f59e0b', '#fef3c7')}
+                className="w-5 h-5 rounded border border-amber-500 bg-amber-100 hover:scale-110 transition flex items-center justify-center"
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              </button>
+              <button
+                title="Green Preset"
+                onClick={() => applyColorPreset('#10b981', '#d1fae5')}
+                className="w-5 h-5 rounded border border-emerald-500 bg-emerald-100 hover:scale-110 transition flex items-center justify-center"
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-slate-700/80 mx-0.5" />
+
+            {/* Stroke Style Selector */}
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-400 font-semibold">Stroke:</span>
+              <button
+                type="button"
+                onClick={() => applyStrokeStyle('solid')}
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                  curStrokeStyle === 'solid' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+                title="Solid Stroke"
+              >
+                Solid (-)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyStrokeStyle('dashed')}
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                  curStrokeStyle === 'dashed' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+                title="Dashed Stroke"
+              >
+                Dashed (--)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyStrokeStyle('dashdot')}
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                  curStrokeStyle === 'dashdot' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+                title="Dash-Dot Stroke"
+              >
+                DashDot (-.)
+              </button>
+            </div>
+
+            {/* Line Curve / Straight Selector for Super/Mega Lines */}
+            {isSuperOrMega && (
+              <>
+                <div className="h-4 w-px bg-slate-700/80 mx-0.5" />
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-slate-400 font-semibold">Shape:</span>
+                  <button
+                    type="button"
+                    onClick={() => applyLineShape('curve')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                      (primaryPrim.config.lineShape || 'curve') === 'curve' ? 'bg-amber-600 text-white shadow' : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                    title="Curved Line"
+                  >
+                    Curve ~
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyLineShape('straight')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                      primaryPrim.config.lineShape === 'straight' ? 'bg-amber-600 text-white shadow' : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                    title="Straight Angle Poly-Chain"
+                  >
+                    Straight ⌐
+                  </button>
+                </div>
+              </>
+            )}
+
+            <div className="h-4 w-px bg-slate-700/80 mx-0.5" />
+
+            {/* Stroke Width Stepper */}
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-400 font-semibold">Width:</span>
+              <button
+                type="button"
+                onClick={() => applyStrokeWidth(Math.max(0.5, curStrokeWidth - 0.5))}
+                className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold"
+                title="Decrease Stroke Width"
+              >
+                -
+              </button>
+              <span className="text-[11px] font-mono font-bold text-indigo-300 px-1">
+                {curStrokeWidth}
+              </span>
+              <button
+                type="button"
+                onClick={() => applyStrokeWidth(Math.min(10, curStrokeWidth + 0.5))}
+                className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold"
+                title="Increase Stroke Width"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Robot Designer Transforms Toolbar Row */}
+      {mode === 'robot_designer' && activeRobotDefId && definitions[activeRobotDefId] && (selectedPrimitiveIdx !== null || selectedPrimitiveIdxs.length > 0) && (() => {
+        const def = definitions[activeRobotDefId];
+        const activeIdxs = selectedPrimitiveIdxs.length > 0 ? selectedPrimitiveIdxs : (selectedPrimitiveIdx !== null ? [selectedPrimitiveIdx] : []);
+        const primaryPrim = def.primitives[activeIdxs[0]];
+        if (!primaryPrim) return null;
+
+        const isVectorType = primaryPrim.type === 'vector' || primaryPrim.type === 'super_vector' || primaryPrim.type === 'mega_vector';
+        const isLineType = primaryPrim.type === 'line' || primaryPrim.type === 'super_line' || primaryPrim.type === 'mega_line';
+        const isLineFamily = isVectorType || isLineType;
+
+        const toggleVectorLineType = () => {
+          const typeMap: Record<string, PrimitiveDefinition['type']> = {
+            vector: 'line',
+            line: 'vector',
+            super_vector: 'super_line',
+            super_line: 'super_vector',
+            mega_vector: 'mega_line',
+            mega_line: 'mega_vector',
+          };
+
+          const updates = activeIdxs.map((i) => {
+            const p = def.primitives[i];
+            return {
+              idx: i,
+              prim: {
+                ...p,
+                type: typeMap[p.type] || p.type,
+              },
+            };
+          });
+
+          if (onUpdatePrimitives) onUpdatePrimitives(updates);
+          else updates.forEach(({ idx: i, prim: p }) => onUpdatePrimitive(i, p));
+        };
+
+        const moveLayerTop = () => {
+          if (!activeRobotDefId) return;
+          const remaining = def.primitives.filter((_, idx) => !activeIdxs.includes(idx));
+          const selected = def.primitives.filter((_, idx) => activeIdxs.includes(idx));
+          const newPrims = [...remaining, ...selected];
+          const newIndices = selected.map((_, k) => remaining.length + k);
+          const updates = newPrims.map((p, k) => ({ idx: k, prim: p }));
+          if (onUpdatePrimitives) onUpdatePrimitives(updates);
+          onSelectPrimitives(newIndices);
+          if (newIndices.length > 0) onSelectPrimitive(newIndices[0]);
+        };
+
+        const moveLayerBot = () => {
+          if (!activeRobotDefId) return;
+          const remaining = def.primitives.filter((_, idx) => !activeIdxs.includes(idx));
+          const selected = def.primitives.filter((_, idx) => activeIdxs.includes(idx));
+          const newPrims = [...selected, ...remaining];
+          const newIndices = selected.map((_, k) => k);
+          const updates = newPrims.map((p, k) => ({ idx: k, prim: p }));
+          if (onUpdatePrimitives) onUpdatePrimitives(updates);
+          onSelectPrimitives(newIndices);
+          if (newIndices.length > 0) onSelectPrimitive(newIndices[0]);
+        };
+
+        return (
+          <div className="absolute top-28 left-4 z-30 bg-slate-900/95 backdrop-blur border border-slate-700/90 rounded-xl p-2 flex items-center gap-2 shadow-2xl text-xs text-slate-200">
+            <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider px-1">Transforms:</span>
+
+            {/* Convert Line <-> Vector button */}
+            {isLineFamily ? (
+              <button
+                onClick={toggleVectorLineType}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded text-[11px] font-bold transition shadow"
+                title="Convert between Vector arrow and Line segment"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                <span>{isVectorType ? '⇄ Convert to Line' : '⇄ Convert to Vector'}</span>
+              </button>
+            ) : null}
+
+            <div className="h-4 w-px bg-slate-700/80 mx-0.5" />
+
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-0.5 pr-0.5">
+                <Layers className="w-3 h-3 text-emerald-400" />
+                Layer:
+              </span>
+              <button
+                onClick={moveLayerTop}
+                className="flex items-center gap-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-bold transition"
+                title="Top Layer (Move to Front)"
+              >
+                <ChevronsUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Top</span>
+              </button>
+              <button
+                onClick={() => onMovePrimitiveLayer && onMovePrimitiveLayer(activeIdxs[0], 'up')}
+                className="flex items-center gap-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-bold transition"
+                title="Step Layer Up (+1)"
+              >
+                <ChevronUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Up</span>
+              </button>
+              <button
+                onClick={() => onMovePrimitiveLayer && onMovePrimitiveLayer(activeIdxs[0], 'down')}
+                className="flex items-center gap-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-bold transition"
+                title="Step Layer Down (-1)"
+              >
+                <ChevronDown className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Down</span>
+              </button>
+              <button
+                onClick={moveLayerBot}
+                className="flex items-center gap-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-bold transition"
+                title="Bottom Layer (Move to Back)"
+              >
+                <ChevronsDown className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Bot</span>
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-slate-700/80 mx-0.5" />
+
+            {/* Delete Part Button */}
+            <button
+              onClick={() => {
+                if (onDeletePrimitives && activeIdxs.length > 0) {
+                  onDeletePrimitives(activeIdxs);
+                } else if (onDeletePrimitive && selectedPrimitiveIdx !== null) {
+                  onDeletePrimitive(selectedPrimitiveIdx);
+                }
+              }}
+              className="flex items-center gap-1 px-2 py-1 bg-rose-600/80 hover:bg-rose-600 text-white rounded text-[11px] font-bold transition shadow"
+              title="Delete Selected Part (Del)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
+            </button>
           </div>
         );
       })()}

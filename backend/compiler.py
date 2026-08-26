@@ -235,6 +235,23 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
                     max_ext = math.hypot(w / 2.0, h / 2.0)
                     xs.extend([rx - max_ext, rx + max_ext])
                     ys.extend([ry - max_ext, ry + max_ext])
+                elif ptype == 'diamond':
+                    w_px = getattr(cfg, 'width', 30.0) if getattr(cfg, 'width', None) is not None else 30.0
+                    h_px = getattr(cfg, 'height', 20.0) if getattr(cfg, 'height', None) is not None else 20.0
+                    w = (w_px / 40.0) * scale
+                    h = (h_px / 40.0) * scale
+                    rx = nx + (ox * cos_r - oy * sin_r)
+                    ry = ny + (ox * sin_r + oy * cos_r)
+                    max_ext = math.hypot(w / 2.0, h / 2.0)
+                    xs.extend([rx - max_ext, rx + max_ext])
+                    ys.extend([ry - max_ext, ry + max_ext])
+                elif ptype == 'triangle':
+                    w_px = getattr(cfg, 'width', 30.0) if getattr(cfg, 'width', None) is not None else 30.0
+                    w = (w_px / 40.0) * scale
+                    rx = nx + (ox * cos_r - oy * sin_r)
+                    ry = ny + (ox * sin_r + oy * cos_r)
+                    xs.extend([rx - w, rx + w])
+                    ys.extend([ry - w, ry + w])
                 elif ptype == 'poly' and getattr(cfg, 'vertices', None):
                     for vx, vy in cfg.vertices:
                         sx = ox + (vx / 40.0) * scale
@@ -244,13 +261,14 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
                         xs.append(rx)
                         ys.append(ry)
                 elif getattr(cfg, 'points', None):
-                    x1, y1, x2, y2 = [(p / 40.0) * scale for p in cfg.points]
-                    rx1 = nx + ((ox + x1) * cos_r - (oy + y1) * sin_r)
-                    ry1 = ny + ((ox + x1) * sin_r + (oy + y1) * cos_r)
-                    rx2 = nx + ((ox + x2) * cos_r - (oy + y2) * sin_r)
-                    ry2 = ny + ((ox + x2) * sin_r + (oy + y2) * cos_r)
-                    xs.extend([rx1, rx2])
-                    ys.extend([ry1, ry2])
+                    raw_pts = cfg.points
+                    for i in range(0, len(raw_pts) - 1, 2):
+                        px = (raw_pts[i] / 40.0) * scale
+                        py = (raw_pts[i + 1] / 40.0) * scale
+                        rx = nx + ((ox + px) * cos_r - (oy + py) * sin_r)
+                        ry = ny + ((ox + px) * sin_r + (oy + py) * cos_r)
+                        xs.append(rx)
+                        ys.append(ry)
                 else:
                     rx = nx + (ox * cos_r - oy * sin_r)
                     ry = ny + (ox * sin_r + oy * cos_r)
@@ -479,6 +497,45 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                 rect.set_clip_path(ax.patch)
                 ax.add_patch(rect)
 
+            elif prim.type == 'diamond':
+                w_px = cfg.width if cfg.width is not None else 30.0
+                h_px = cfg.height if cfg.height is not None else 20.0
+                w = (w_px / 40.0) * node_scale
+                h = (h_px / 40.0) * node_scale
+                ox = (prim_x / 40.0) * node_scale
+                oy = (prim_y / 40.0) * node_scale
+
+                rx = parent_x + (ox * cos_r - oy * sin_r)
+                ry = parent_y + (ox * sin_r + oy * cos_r)
+
+                pts = [(0, h/2.0), (w/2.0, 0), (0, -h/2.0), (-w/2.0, 0)]
+                poly = patches.Polygon(pts, closed=True, edgecolor=color, facecolor=fill, linewidth=pw, linestyle=pls)
+                t = transforms.Affine2D().rotate_deg(rotation_deg).translate(rx, ry) + ax.transData
+                poly.set_transform(t)
+                poly.set_clip_path(ax.patch)
+                ax.add_patch(poly)
+
+            elif prim.type == 'triangle':
+                w_px = cfg.width if cfg.width is not None else 30.0
+                w = (w_px / 40.0) * node_scale
+                tri_type = getattr(cfg, 'triangleType', 'right_isosceles') or 'right_isosceles'
+                ox = (prim_x / 40.0) * node_scale
+                oy = (prim_y / 40.0) * node_scale
+
+                rx = parent_x + (ox * cos_r - oy * sin_r)
+                ry = parent_y + (ox * sin_r + oy * cos_r)
+
+                if tri_type == 'equilateral':
+                    h = w * 0.866
+                    pts = [(0, h * 0.66), (-w/2.0, -h * 0.33), (w/2.0, -h * 0.33)]
+                else:
+                    pts = [(-w/3.0, 2*w/3.0), (-w/3.0, -w/3.0), (2*w/3.0, -w/3.0)]
+                poly = patches.Polygon(pts, closed=True, edgecolor=color, facecolor=fill, linewidth=pw, linestyle=pls)
+                t = transforms.Affine2D().rotate_deg(rotation_deg).translate(rx, ry) + ax.transData
+                poly.set_transform(t)
+                poly.set_clip_path(ax.patch)
+                ax.add_patch(poly)
+
             elif prim.type == 'poly' and cfg.vertices:
                 verts = []
                 ox = (prim_x / 40.0) * node_scale
@@ -494,9 +551,57 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                 poly.set_clip_path(ax.patch)
                 ax.add_patch(poly)
 
+            elif (prim.type == 'mega_line' or prim.type == 'mega_vector') and cfg.points and len(cfg.points) >= 4:
+                raw_pts = cfg.points
+                ox = (prim_x / 40.0) * node_scale
+                oy = (prim_y / 40.0) * node_scale
+                poly_pts = []
+                for k in range(0, len(raw_pts), 2):
+                    kx = (raw_pts[k] / 40.0) * node_scale
+                    ky = (raw_pts[k+1] / 40.0) * node_scale
+                    rx = parent_x + ((ox + kx) * cos_r - (oy + ky) * sin_r)
+                    ry = parent_y + ((ox + kx) * sin_r + (oy + ky) * cos_r)
+                    poly_pts.append((rx, ry))
+
+                is_straight = getattr(cfg, 'lineShape', 'straight') == 'straight'
+                if prim.type == 'mega_line':
+                    if is_straight or len(poly_pts) < 3:
+                        xs = [p[0] for p in poly_pts]
+                        ys = [p[1] for p in poly_pts]
+                        lines = ax.plot(xs, ys, color=color, linewidth=pw, linestyle=pls)
+                        for l in lines:
+                            l.set_clip_path(ax.patch)
+                    else:
+                        path = build_catmull_rom_path(poly_pts)
+                        patch = patches.PathPatch(path, edgecolor=color, facecolor='none', linewidth=pw, linestyle=pls)
+                        patch.set_clip_path(ax.patch)
+                        ax.add_patch(patch)
+                else:  # mega_vector
+                    if is_straight or len(poly_pts) < 3:
+                        for k in range(len(poly_pts) - 2):
+                            lines = ax.plot([poly_pts[k][0], poly_pts[k+1][0]], [poly_pts[k][1], poly_pts[k+1][1]], color=color, linewidth=pw, linestyle=pls)
+                            for l in lines:
+                                l.set_clip_path(ax.patch)
+                        ann = ax.annotate('', xy=poly_pts[-1], xytext=poly_pts[-2],
+                                    arrowprops=dict(arrowstyle="-|>", color=color, lw=pw, linestyle=pls, mutation_scale=15, shrinkA=0, shrinkB=0))
+                        ann.set_clip_path(ax.patch)
+                    else:
+                        from matplotlib.patches import FancyArrowPatch
+                        path = build_catmull_rom_path(poly_pts)
+                        arrow = FancyArrowPatch(
+                            path=path,
+                            arrowstyle="-|>",
+                            color=color,
+                            linewidth=pw,
+                            linestyle=pls,
+                            mutation_scale=15,
+                        )
+                        arrow.set_clip_path(ax.patch)
+                        ax.add_patch(arrow)
+
             elif (prim.type == 'vector' or prim.type == 'line' or prim.type == 'super_vector' or prim.type == 'super_line') and cfg.points:
                 pts = cfg.points
-                x1, y1, x2, y2 = [(p / 40.0) * node_scale for p in pts]
+                x1, y1, x2, y2 = [(p / 40.0) * node_scale for p in pts[:4]]
                 
                 ox = (prim_x / 40.0) * node_scale
                 oy = (prim_y / 40.0) * node_scale
@@ -630,7 +735,7 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                 pts = node.points or [0, 0, 3, 2]
                 rad = math.radians(node.rotation)
                 cos_r, sin_r = math.cos(rad), math.sin(rad)
-                dx1, dy1, dx2, dy2 = [p * node_scale for p in pts]
+                dx1, dy1, dx2, dy2 = [p * node_scale for p in pts[:4]]
                 
                 rx1 = node.x + (dx1 * cos_r - dy1 * sin_r)
                 ry1 = node.y + (dx1 * sin_r + dy1 * cos_r)
@@ -645,7 +750,7 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                 pts = node.points or [0, 0, 3, 2]
                 rad = math.radians(node.rotation)
                 cos_r, sin_r = math.cos(rad), math.sin(rad)
-                dx1, dy1, dx2, dy2 = [p * node_scale for p in pts]
+                dx1, dy1, dx2, dy2 = [p * node_scale for p in pts[:4]]
 
                 rx1 = node.x + (dx1 * cos_r - dy1 * sin_r)
                 ry1 = node.y + (dx1 * sin_r + dy1 * cos_r)
@@ -660,7 +765,7 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                 pts = node.points or [0, 0, 3, 2]
                 rad = math.radians(node.rotation)
                 cos_r, sin_r = math.cos(rad), math.sin(rad)
-                dx1, dy1, dx2, dy2 = [p * node_scale for p in pts]
+                dx1, dy1, dx2, dy2 = [p * node_scale for p in pts[:4]]
 
                 rx1 = node.x + (dx1 * cos_r - dy1 * sin_r)
                 ry1 = node.y + (dx1 * sin_r + dy1 * cos_r)

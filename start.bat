@@ -1,3 +1,0 @@
-@echo off
-echo Starting Scientific Sketch Link Stack...
-python start.py

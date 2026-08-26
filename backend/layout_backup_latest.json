@@ -547,30 +547,30 @@
             "points": [
               0,
               0,
-              45,
+              33,
               0
             ],
             "strokeColor": "#ef4444"
           }
         },
         {
-          "id": "left_wheel",
+          "id": "right_wheel",
           "type": "rect",
           "config": {
-            "x": -10,
-            "y": -34,
-            "width": 20,
+            "x": 0,
+            "y": 24,
+            "width": 31,
             "height": 8,
             "fillColor": "#1e293b"
           }
         },
         {
-          "id": "right_wheel",
+          "id": "prim_1787068596702_2",
           "type": "rect",
           "config": {
-            "x": -10,
-            "y": 34,
-            "width": 20,
+            "x": 0,
+            "y": -24,
+            "width": 31,
             "height": 8,
             "fillColor": "#1e293b"
           }
@@ -822,6 +822,272 @@
           }
         }
       ]
+    },
+    "custom_1787068637402": {
+      "id": "custom_1787068637402",
+      "name": "Spring-Damper",
+      "primitives": [
+        {
+          "id": "imported_chassis_1787068641601_0",
+          "type": "circle",
+          "config": {
+            "radius": 35,
+            "strokeColor": "#3b82f6",
+            "fillColor": "#dbeafe"
+          }
+        },
+        {
+          "id": "imported_heading_line_1787068641601_1",
+          "type": "vector",
+          "config": {
+            "points": [
+              15,
+              0,
+              33,
+              0
+            ],
+            "strokeColor": "#ef4444",
+            "x": 0,
+            "y": 0,
+            "strokeWidth": 1.5
+          }
+        },
+        {
+          "id": "imported_right_wheel_1787068641601_2",
+          "type": "rect",
+          "config": {
+            "x": 0,
+            "y": 24,
+            "width": 31,
+            "height": 8,
+            "fillColor": "#1e293b"
+          }
+        },
+        {
+          "id": "imported_prim_1787068596702_2_1787068641601_3",
+          "type": "rect",
+          "config": {
+            "x": 0,
+            "y": -24,
+            "width": 31,
+            "height": 8,
+            "fillColor": "#1e293b"
+          }
+        },
+        {
+          "id": "prim_1787070160696",
+          "type": "mega_line",
+          "config": {
+            "x": 35,
+            "y": 10,
+            "points": [
+              0,
+              0,
+              5,
+              -20,
+              5,
+              0,
+              10,
+              -20,
+              10,
+              0
+            ],
+            "lineShape": "straight",
+            "strokeColor": "#000000",
+            "fillColor": "#dbeafe",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "prim_1787070233240",
+          "type": "super_line",
+          "config": {
+            "x": 45,
+            "y": -15,
+            "points": [
+              0,
+              0,
+              0,
+              30
+            ],
+            "controlPoint": [
+              5,
+              15
+            ],
+            "lineShape": "straight",
+            "strokeColor": "#0ea5e9",
+            "fillColor": "#dbeafe",
+            "strokeWidth": 1
+          }
+        }
+      ]
+    },
+    "custom_1787075062288": {
+      "id": "custom_1787075062288",
+      "name": "Line Bumper",
+      "primitives": [
+        {
+          "id": "imported_imported_chassis_1787068641601_0_1787075076175_0",
+          "type": "circle",
+          "config": {
+            "radius": 35,
+            "strokeColor": "#3b82f6",
+            "fillColor": "#dbeafe"
+          }
+        },
+        {
+          "id": "imported_imported_heading_line_1787068641601_1_1787075076175_1",
+          "type": "vector",
+          "config": {
+            "points": [
+              15,
+              0,
+              33,
+              0
+            ],
+            "strokeColor": "#ef4444",
+            "x": 0,
+            "y": 0,
+            "strokeWidth": 1.5
+          }
+        },
+        {
+          "id": "imported_imported_right_wheel_1787068641601_2_1787075076175_2",
+          "type": "rect",
+          "config": {
+            "x": 0,
+            "y": 24,
+            "width": 31,
+            "height": 8,
+            "fillColor": "#1e293b"
+          }
+        },
+        {
+          "id": "imported_imported_prim_1787068596702_2_1787068641601_3_1787075076175_3",
+          "type": "rect",
+          "config": {
+            "x": 0,
+            "y": -24,
+            "width": 31,
+            "height": 8,
+            "fillColor": "#1e293b"
+          }
+        },
+        {
+          "id": "imported_prim_1787070160696_1787075076175_4",
+          "type": "mega_line",
+          "config": {
+            "x": 35,
+            "y": 10,
+            "points": [
+              0,
+              0,
+              5,
+              -20,
+              5,
+              0,
+              10,
+              -20,
+              10,
+              0
+            ],
+            "lineShape": "straight",
+            "strokeColor": "#000000",
+            "fillColor": "#dbeafe",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "prim_1787075087795",
+          "type": "rect",
+          "config": {
+            "x": 51,
+            "y": 0,
+            "width": 10,
+            "height": 41,
+            "strokeColor": "#3b82f6",
+            "fillColor": "#484e56",
+            "strokeWidth": 1.5
+          }
+        }
+      ]
+    },
+    "custom_1787075162129": {
+      "id": "custom_1787075162129",
+      "name": "Holonomic",
+      "primitives": [
+        {
+          "id": "imported_chassis_1787075166509_0",
+          "type": "circle",
+          "config": {
+            "radius": 35,
+            "strokeColor": "#3b82f6",
+            "fillColor": "#dbeafe"
+          }
+        },
+        {
+          "id": "imported_heading_line_1787075166509_1",
+          "type": "vector",
+          "config": {
+            "points": [
+              8,
+              7,
+              23,
+              23
+            ],
+            "strokeColor": "#ef4444",
+            "strokeWidth": 1.5
+          }
+        },
+        {
+          "id": "imported_right_wheel_1787075166509_2",
+          "type": "rect",
+          "config": {
+            "x": 0,
+            "y": 26,
+            "width": 20,
+            "height": 8,
+            "fillColor": "#1e293b",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "prim_1787075206383_2",
+          "type": "rect",
+          "config": {
+            "x": 0,
+            "y": -26,
+            "width": 20,
+            "height": 8,
+            "fillColor": "#1e293b",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "prim_1787075215407_3",
+          "type": "rect",
+          "config": {
+            "x": 26,
+            "y": 0,
+            "width": 8,
+            "height": 20,
+            "fillColor": "#1e293b",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "prim_1787075229486_4",
+          "type": "rect",
+          "config": {
+            "x": -26,
+            "y": 0,
+            "width": 8,
+            "height": 20,
+            "fillColor": "#1e293b",
+            "strokeWidth": 1
+          }
+        }
+      ]
     }
   },
   "plotOptions": {
@@ -842,15 +1108,36 @@
     "marginPadding": 0,
     "cropToContent": true,
     "cropPadding": 0.05,
-    "renderMathOnCanvas": false
+    "renderMathOnCanvas": true
   },
   "exportBounds": {
-    "xMin": -14.4,
-    "xMax": 22.6,
-    "yMin": -22.8,
-    "yMax": -9.3
+    "xMin": -15.2,
+    "xMax": 22.4,
+    "yMin": -22.2,
+    "yMax": -9.8
   },
   "scene": [
+    {
+      "id": "node_triangle_1787075656553_0",
+      "name": "TRIANGLE 97_copy",
+      "type": "triangle",
+      "x": 14.25,
+      "y": -25.6,
+      "scale": 1,
+      "rotation": 0,
+      "width": 3,
+      "height": 2,
+      "triangleType": "equilateral",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#f59e0b",
+        "fillColor": "#fef3c7"
+      }
+    },
     {
       "id": "node_rect_1786655656770_6",
       "name": "RECT 21_copy",
@@ -876,8 +1163,8 @@
       "name": "Robot 1",
       "type": "alias",
       "definitionId": "diff_drive_bot",
-      "x": 14.4,
-      "y": -3.4,
+      "x": 8,
+      "y": -24.6,
       "scale": 1,
       "rotation": 30,
       "label": "",
@@ -886,23 +1173,6 @@
         "strokeStyle": "solid",
         "color": "#3b82f6",
         "fillColor": "#93c5fd"
-      }
-    },
-    {
-      "id": "node_robot_2",
-      "name": "Robot 2",
-      "type": "alias",
-      "definitionId": "root_robot",
-      "x": 2.2,
-      "y": -3.2,
-      "scale": 1.2,
-      "rotation": -45,
-      "label": "",
-      "style": {
-        "strokeWidth": 2,
-        "strokeStyle": "solid",
-        "color": "#10b981",
-        "fillColor": "#a7f3d0"
       }
     },
     {
@@ -1225,7 +1495,7 @@
       "width": 4.3,
       "height": 1.8,
       "label": "Observer",
-      "labelOffsetX": -0.02,
+      "labelOffsetX": -0.18,
       "labelOffsetY": 0,
       "fontSize": 30,
       "style": {
@@ -1509,32 +1779,6 @@
         "fillColor": "#dbeafe"
       },
       "textAlign": "center"
-    },
-    {
-      "id": "node_vector_1786734744310",
-      "name": "VECTOR 82",
-      "type": "vector",
-      "x": 8.6,
-      "y": -3.8,
-      "scale": 1,
-      "rotation": 0,
-      "points": [
-        0,
-        0,
-        -6.4,
-        0.6
-      ],
-      "endBinding": {
-        "nodeId": "node_robot_2",
-        "pointKey": "center"
-      },
-      "fontSize": 23,
-      "style": {
-        "strokeWidth": 2.5,
-        "strokeStyle": "dashed",
-        "color": "#10b981",
-        "fillColor": "#d1fae5"
-      }
     },
     {
       "id": "node_vector_1786966863436",
@@ -2776,27 +3020,6 @@
       "labelOffsetY": -0.07
     },
     {
-      "id": "node_rect_1786995341404_0",
-      "name": "RECT 21_copy_copy",
-      "type": "rect",
-      "x": 12.8,
-      "y": -18,
-      "scale": 1,
-      "rotation": 0,
-      "width": 9.2,
-      "height": 1.3,
-      "labelOffsetX": 0,
-      "labelOffsetY": 0,
-      "fontSize": 30,
-      "style": {
-        "strokeWidth": 2,
-        "strokeStyle": "dashdot",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      },
-      "label": "Controller j"
-    },
-    {
       "id": "node_vector_1787019743030",
       "name": "VECTOR 78",
       "type": "vector",
@@ -2970,7 +3193,7 @@
         "nodeId": "node_circle_1787062224414",
         "pointKey": "circle_p8"
       },
-      "label": "v_{r,i}",
+      "label": "q_{r,i}",
       "fontSize": 23,
       "style": {
         "strokeWidth": 2.5,
@@ -3003,7 +3226,7 @@
         "nodeId": "node_rect_1787062274429",
         "pointKey": "edge_l_int_2"
       },
-      "label": "F_i",
+      "label": "\\vec{f_i}",
       "fontSize": 23,
       "style": {
         "strokeWidth": 2.5,
@@ -3032,7 +3255,7 @@
         "nodeId": "node_rect_1787062274429",
         "pointKey": "edge_l_int_3"
       },
-      "label": "F_j",
+      "label": "\\vec{f_j}",
       "fontSize": 23,
       "style": {
         "strokeWidth": 2.5,
@@ -3056,12 +3279,12 @@
         0,
         0,
         -1,
-        -8.5,
+        -8,
         -1,
-        -8.5,
-        1.7,
-        -7.95,
-        1.7
+        -8.8,
+        -1,
+        -8.8,
+        1.4
       ],
       "lineShape": "straight",
       "megaBindings": {
@@ -3070,8 +3293,8 @@
           "pointKey": "edge_t_int_2"
         },
         "4": {
-          "nodeId": "node_rect_1787062121579",
-          "pointKey": "edge_l_int_2"
+          "nodeId": "node_circle_1787672900694",
+          "pointKey": "circ_270"
         }
       },
       "label": "q_s",
@@ -3086,37 +3309,11 @@
       "labelOffsetY": -0.71
     },
     {
-      "id": "node_vector_1787062579086",
-      "name": "VECTOR 87",
-      "type": "vector",
-      "x": -5.2,
-      "y": -24.3,
-      "scale": 1,
-      "rotation": 0,
-      "points": [
-        0,
-        0,
-        0,
-        -0.6
-      ],
-      "endBinding": {
-        "nodeId": "node_rect_1787062121579",
-        "pointKey": "edge_b_int_2"
-      },
-      "fontSize": 23,
-      "style": {
-        "strokeWidth": 2.5,
-        "strokeStyle": "solid",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      }
-    },
-    {
       "id": "node_text_1787062586504",
       "name": "TEXT 88",
       "type": "text",
-      "x": -5.29,
-      "y": -23.99,
+      "x": -8.82,
+      "y": -25.21,
       "scale": 1,
       "rotation": 0,
       "label": "desired q_s",
@@ -3128,6 +3325,754 @@
       },
       "labelOffsetX": 0,
       "labelOffsetY": 0
+    },
+    {
+      "id": "node_alias_1787070258397",
+      "name": "Spring-Damper",
+      "type": "alias",
+      "definitionId": "custom_1787068637402",
+      "x": 12.3,
+      "y": -28.96,
+      "scale": 1,
+      "rotation": -36,
+      "label": "R_i",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      },
+      "labelOffsetX": -0.08,
+      "labelOffsetY": 0.03
+    },
+    {
+      "id": "node_text_1787071447688",
+      "name": "TEXT 89",
+      "type": "text",
+      "x": 14.02,
+      "y": -29.41,
+      "scale": 1,
+      "rotation": -53,
+      "label": "\\vec{f_i}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000"
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
+    },
+    {
+      "id": "node_rect_1787071497686",
+      "name": "RECT 89",
+      "type": "rect",
+      "x": 26.4,
+      "y": -25.2,
+      "scale": 1,
+      "rotation": -169,
+      "width": 3.3,
+      "height": 2.1,
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#10b981",
+        "fillColor": "#d1fae5"
+      }
+    },
+    {
+      "id": "node_vector_1787071532039",
+      "name": "VECTOR 90",
+      "type": "vector",
+      "x": 26.4,
+      "y": -25.2,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        -0.1,
+        0.6
+      ],
+      "startBinding": {
+        "nodeId": "node_rect_1787071497686",
+        "pointKey": "center"
+      },
+      "label": "\\vec{O_{x,s}}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": -0.12,
+      "labelOffsetY": 0.93
+    },
+    {
+      "id": "node_vector_1787071600006",
+      "name": "VECTOR 91",
+      "type": "vector",
+      "x": 26.4,
+      "y": -25.2,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.75,
+        0.15
+      ],
+      "startBinding": {
+        "nodeId": "node_rect_1787071497686",
+        "pointKey": "center"
+      },
+      "label": "\\vec{O_{y,s}}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": 1.15,
+      "labelOffsetY": 0.46
+    },
+    {
+      "id": "node_triangle_1787073756526",
+      "name": "TRIANGLE 97",
+      "type": "triangle",
+      "x": 14.55,
+      "y": -29.31,
+      "scale": 1,
+      "rotation": 0,
+      "width": 3,
+      "height": 2,
+      "triangleType": "equilateral",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#f59e0b",
+        "fillColor": "#fef3c7"
+      }
+    },
+    {
+      "id": "node_vector_1787073775727_0",
+      "name": "VECTOR 90_copy",
+      "type": "vector",
+      "x": 26.4,
+      "y": -25.2,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        -0.1,
+        0.6
+      ],
+      "startBinding": {
+        "nodeId": "node_rect_1787071497686",
+        "pointKey": "center"
+      },
+      "label": "\\vec{O_{x,s}}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": -0.12,
+      "labelOffsetY": 0.93
+    },
+    {
+      "id": "node_vector_1787073789776",
+      "name": "VECTOR 99",
+      "type": "vector",
+      "x": 14.55,
+      "y": -29.31,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0,
+        0.9
+      ],
+      "startBinding": {
+        "nodeId": "node_triangle_1787073756526",
+        "pointKey": "center"
+      },
+      "label": "\\vec{O_{x,s}}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#f59e0b"
+      },
+      "labelOffsetX": 0.06,
+      "labelOffsetY": 1.11
+    },
+    {
+      "id": "node_vector_1787073796869_0",
+      "name": "VECTOR 99_copy",
+      "type": "vector",
+      "x": 14.55,
+      "y": -29.31,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0,
+        0.9
+      ],
+      "startBinding": {
+        "nodeId": "node_triangle_1787073756526",
+        "pointKey": "center"
+      },
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#f59e0b"
+      }
+    },
+    {
+      "id": "node_vector_1787073812106",
+      "name": "VECTOR 101",
+      "type": "vector",
+      "x": 14.55,
+      "y": -29.31,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.8,
+        0
+      ],
+      "startBinding": {
+        "nodeId": "node_triangle_1787073756526",
+        "pointKey": "center"
+      },
+      "label": "\\vec{O_{y,s}}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#f59e0b"
+      },
+      "labelOffsetX": 0.84,
+      "labelOffsetY": -0.44
+    },
+    {
+      "id": "node_text_1787073832393_1",
+      "name": "TEXT 89_copy",
+      "type": "text",
+      "x": 13.84,
+      "y": -26.32,
+      "scale": 1,
+      "rotation": -62,
+      "label": "\\vec{f_i}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000"
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
+    },
+    {
+      "id": "node_vector_1787073906290",
+      "name": "VECTOR 104",
+      "type": "vector",
+      "x": 13.35,
+      "y": -29.71,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.7,
+        -0.2
+      ],
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 1,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_line_1787073937414",
+      "name": "LINE 105",
+      "type": "line",
+      "x": 13.35,
+      "y": -29.71,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        1,
+        0
+      ],
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_text_1787073967057",
+      "name": "TEXT 106",
+      "type": "text",
+      "x": 14.28,
+      "y": -29.82,
+      "scale": 1,
+      "rotation": 0,
+      "label": "\\alpha_i",
+      "fontSize": 18,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000"
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
+    },
+    {
+      "id": "node_text_1787074065048",
+      "name": "TEXT 107",
+      "type": "text",
+      "x": 13.89,
+      "y": -30.47,
+      "scale": 1,
+      "rotation": 0,
+      "label": "cp_i = [cp_{i,x} cp_{i,y}]^T",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000"
+      },
+      "labelOffsetX": 0,
+      "labelOffsetY": 0
+    },
+    {
+      "id": "node_vector_1787074114654",
+      "name": "VECTOR 108",
+      "type": "line",
+      "x": 12.85,
+      "y": -30.21,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.5,
+        0.5
+      ],
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "dashdot",
+        "color": "#ef4444",
+        "fillColor": "#fee2e2"
+      }
+    },
+    {
+      "id": "node_alias_1787075036880_0",
+      "name": "Spring-Damper_copy",
+      "type": "alias",
+      "definitionId": "custom_1787068637402",
+      "x": 26.74,
+      "y": -30.21,
+      "scale": 1,
+      "rotation": -1,
+      "label": "R_i",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      },
+      "labelOffsetX": -0.08,
+      "labelOffsetY": 0.03
+    },
+    {
+      "id": "node_alias_1787075045515",
+      "name": "Differential Drive Bot",
+      "type": "alias",
+      "definitionId": "diff_drive_bot",
+      "x": 17.7,
+      "y": -25,
+      "scale": 1,
+      "rotation": -27,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_alias_1787075133926",
+      "name": "Line Bumper",
+      "type": "alias",
+      "definitionId": "custom_1787075062288",
+      "x": 29.24,
+      "y": -30.21,
+      "scale": 1,
+      "rotation": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_alias_1787075248592",
+      "name": "Holonomic",
+      "type": "alias",
+      "definitionId": "custom_1787075162129",
+      "x": 24.34,
+      "y": -30.21,
+      "scale": 1,
+      "rotation": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_alias_1787075650224_0",
+      "name": "Spring-Damper_copy",
+      "type": "alias",
+      "definitionId": "custom_1787068637402",
+      "x": 12.35,
+      "y": -24.7,
+      "scale": 1,
+      "rotation": -36,
+      "label": "R_i",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      },
+      "labelOffsetX": -0.08,
+      "labelOffsetY": 0.03
+    },
+    {
+      "id": "node_vector_1787075706362",
+      "name": "VECTOR 114",
+      "type": "vector",
+      "x": 13.32,
+      "y": -25.45,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.4,
+        -0.7
+      ],
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 1,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_vector_1787075778865",
+      "name": "VECTOR 110",
+      "type": "vector",
+      "x": 13.35,
+      "y": -25.45,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        -0.23,
+        -0.36
+      ],
+      "endBinding": {
+        "nodeId": "node_triangle_1787075656553_0",
+        "pointKey": "edge_01_3"
+      },
+      "label": "\\vec{f_{i,t}}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 1,
+        "strokeStyle": "solid",
+        "color": "#10b981",
+        "fillColor": "#d1fae5"
+      },
+      "labelOffsetX": -0.31,
+      "labelOffsetY": -0.72
+    },
+    {
+      "id": "node_vector_1787075829807",
+      "name": "VECTOR 111",
+      "type": "vector",
+      "x": 13.35,
+      "y": -25.45,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.6,
+        -0.5
+      ],
+      "label": "\\vec{f_{i,n}}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 1,
+        "strokeStyle": "solid",
+        "color": "#10b981",
+        "fillColor": "#d1fae5"
+      },
+      "labelOffsetX": 0.84,
+      "labelOffsetY": -0.15
+    },
+    {
+      "id": "node_line_1787075872708",
+      "name": "LINE 112",
+      "type": "line",
+      "x": 13.35,
+      "y": -25.45,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.6,
+        0.2
+      ],
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "dashdot",
+        "color": "#ef4444",
+        "fillColor": "#fee2e2"
+      }
+    },
+    {
+      "id": "node_line_1787075888607",
+      "name": "LINE 113",
+      "type": "line",
+      "x": 13.35,
+      "y": -25.45,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0,
+        -0.6
+      ],
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "dashdot",
+        "color": "#ef4444",
+        "fillColor": "#fee2e2"
+      }
+    },
+    {
+      "id": "node_triangle_1787076115584_0",
+      "name": "TRIANGLE 97_copy_copy",
+      "type": "triangle",
+      "x": 19.4,
+      "y": -25.6,
+      "scale": 1,
+      "rotation": 0,
+      "width": 3,
+      "height": 2,
+      "triangleType": "equilateral",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#f59e0b",
+        "fillColor": "#fef3c7"
+      }
+    },
+    {
+      "id": "node_vector_1787076150159",
+      "name": "VECTOR 115",
+      "type": "vector",
+      "x": 18.5,
+      "y": -25.4,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.5,
+        -0.2
+      ],
+      "label": "v_{r,i}",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 1,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": 0.7,
+      "labelOffsetY": 0.14
+    },
+    {
+      "id": "node_circle_1787672900694",
+      "name": "CIRCLE 115",
+      "type": "circle",
+      "x": -7.45,
+      "y": -25.6,
+      "scale": 1,
+      "rotation": 0,
+      "width": 3,
+      "height": 2,
+      "radius": 0.3,
+      "label": "-",
+      "labelOffsetX": -0.02,
+      "labelOffsetY": 0.01,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_vector_1787673138948",
+      "name": "VECTOR 115",
+      "type": "vector",
+      "x": -8.35,
+      "y": -25.61,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.6,
+        0
+      ],
+      "endBinding": {
+        "nodeId": "node_circle_1787672900694",
+        "pointKey": "circ_180"
+      },
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_vector_1787673190293",
+      "name": "VECTOR 116",
+      "type": "vector",
+      "x": -7.15,
+      "y": -25.6,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.6,
+        0
+      ],
+      "startBinding": {
+        "nodeId": "node_circle_1787672900694",
+        "pointKey": "circ_0"
+      },
+      "endBinding": {
+        "nodeId": "node_rect_1787062121579",
+        "pointKey": "edge_left_2"
+      },
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_mega_vector_1787673295162",
+      "name": "MEGA_VECTOR 117",
+      "type": "mega_vector",
+      "x": -1.9,
+      "y": -26.6,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -3.4,
+        -1,
+        -3.4,
+        0.3
+      ],
+      "lineShape": "straight",
+      "megaBindings": {
+        "0": {
+          "nodeId": "node_circle_1787062224414",
+          "pointKey": "circ_270"
+        },
+        "1": {
+          "nodeId": "node_circle_1787062224414",
+          "pointKey": "circ_270"
+        },
+        "4": {
+          "nodeId": "node_rect_1787062121579",
+          "pointKey": "edge_bottom_2"
+        }
+      },
+      "label": "f_i",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "dashed",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": -0.39,
+      "labelOffsetY": -0.64
     }
   ]
 }

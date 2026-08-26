@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectLayout } from '../types/schema';
 import { INITIAL_LAYOUT } from '../utils/initialData';
 import { filterLayoutForExport } from '../utils/aabbFilter';
+import { getApiBaseUrl } from '../utils/api';
 import { RefreshCw, CheckCircle2, AlertCircle, Download, Compass, ZoomIn, ZoomOut, RotateCcw, Move, Copy } from 'lucide-react';
 import { getCurrentExportFileName, consumeExportFileName, getCurrentExportBaseName } from '../utils/exportNaming';
 
 const LOCAL_STORAGE_KEY = 'mrsketch_project_layout_v1';
 
 export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
-  backendUrl = 'http://127.0.0.1:8000',
+  backendUrl = getApiBaseUrl(),
 }) => {
   const [layout, setLayout] = useState<ProjectLayout>(() => {
     try {

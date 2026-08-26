@@ -34,7 +34,10 @@ interface SidebarProps {
   onAddPrimitive: (type: PrimitiveDefinition['type']) => void;
   onImportComponentPrimitives: (sourceDefId: string) => void;
   onDeletePrimitive: (idx: number) => void;
+  onDeletePrimitives?: (idxs: number[]) => void;
+  onDuplicatePrimitive?: (idx: number) => void;
   onUpdatePrimitive: (idx: number, prim: PrimitiveDefinition) => void;
+  onUpdatePrimitives?: (updates: Array<{ idx: number; prim: PrimitiveDefinition }>) => void;
   onUpdateDefinitions: (defs: Record<string, RobotDefinition>) => void;
 }
 
@@ -69,6 +72,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onAddPrimitive,
   onImportComponentPrimitives,
   onDeletePrimitive,
+  onDeletePrimitives: _onDeletePrimitives,
+  onDuplicatePrimitive,
   onUpdatePrimitive,
   onUpdateDefinitions,
 }) => {
@@ -326,6 +331,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span>⚡ + Super Line</span>
                   </button>
                 </div>
+
+                {/* Row 3: Mega Vector & Mega Line primitives */}
+                <div className="grid grid-cols-2 gap-1 pt-1 border-t border-slate-800/80">
+                  <button
+                    onClick={() => setDrawingMode('draw_mega_vector')}
+                    className={`flex items-center justify-center gap-1.5 py-1 rounded-md font-bold transition border border-rose-900/30 ${
+                      drawingMode === 'draw_mega_vector' ? 'bg-rose-600 text-white shadow' : 'bg-slate-900 text-rose-400 hover:bg-slate-800'
+                    }`}
+                    title="Add Mega Vector Poly-Chain"
+                  >
+                    <MoveRight className="w-3 h-3" />
+                    <span>🌊 + Mega Vector</span>
+                  </button>
+
+                  <button
+                    onClick={() => setDrawingMode('draw_mega_line')}
+                    className={`flex items-center justify-center gap-1.5 py-1 rounded-md font-bold transition border border-cyan-900/30 ${
+                      drawingMode === 'draw_mega_line' ? 'bg-cyan-600 text-white shadow' : 'bg-slate-900 text-cyan-400 hover:bg-slate-800'
+                    }`}
+                    title="Add Mega Line Poly-Chain"
+                  >
+                    <CornerDownRight className="w-3 h-3" />
+                    <span>🌊 + Mega Line</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -371,20 +401,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 Add Primitive Shape
               </span>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 <button
                   onClick={() => onAddPrimitive('circle')}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-xs flex items-center justify-center gap-1.5 text-slate-300 transition"
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-[11px] flex flex-col items-center justify-center gap-1 text-slate-300 transition"
+                  title="Add Circle Primitive"
                 >
                   <Circle className="w-3.5 h-3.5 text-blue-400" />
-                  <span>+ Circle</span>
+                  <span>Circle</span>
                 </button>
                 <button
                   onClick={() => onAddPrimitive('rect')}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-xs flex items-center justify-center gap-1.5 text-slate-300 transition"
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-[11px] flex flex-col items-center justify-center gap-1 text-slate-300 transition"
+                  title="Add Rectangle Primitive"
                 >
                   <Square className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>+ Rect</span>
+                  <span>Rect</span>
+                </button>
+                <button
+                  onClick={() => onAddPrimitive('diamond')}
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-[11px] flex flex-col items-center justify-center gap-1 text-slate-300 transition"
+                  title="Add Diamond Primitive"
+                >
+                  <Hexagon className="w-3.5 h-3.5 text-amber-400 rotate-45" />
+                  <span>Diamond</span>
+                </button>
+                <button
+                  onClick={() => onAddPrimitive('triangle')}
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-[11px] flex flex-col items-center justify-center gap-1 text-slate-300 transition"
+                  title="Add Triangle Primitive"
+                >
+                  <Triangle className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Triangle</span>
                 </button>
               </div>
             </div>
@@ -447,12 +495,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             >
                               <ArrowDown className="w-3 h-3" />
                             </button>
+                            {onDuplicatePrimitive && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDuplicatePrimitive(idx);
+                                }}
+                                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded"
+                                title="Duplicate Part"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onDeletePrimitive(idx);
                               }}
                               className="p-1 hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded"
+                              title="Delete Part"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -563,6 +624,76 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
 
+                    {/* Diamond Width/Height Fields */}
+                    {activePrimitive.type === 'diamond' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-400">Width (px)</label>
+                          <input
+                            type="number"
+                            value={activePrimitive.config.width || 30}
+                            onChange={(e) =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, width: parseFloat(e.target.value) || 0 },
+                              })
+                            }
+                            className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-400">Height (px)</label>
+                          <input
+                            type="number"
+                            value={activePrimitive.config.height || 20}
+                            onChange={(e) =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, height: parseFloat(e.target.value) || 0 },
+                              })
+                            }
+                            className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Triangle Width & Type Fields */}
+                    {activePrimitive.type === 'triangle' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-400">Side / Base (px)</label>
+                          <input
+                            type="number"
+                            value={activePrimitive.config.width || 30}
+                            onChange={(e) =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, width: parseFloat(e.target.value) || 0 },
+                              })
+                            }
+                            className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-400">Type</label>
+                          <select
+                            value={activePrimitive.config.triangleType || 'right_isosceles'}
+                            onChange={(e) =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, triangleType: e.target.value as any },
+                              })
+                            }
+                            className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200"
+                          >
+                            <option value="right_isosceles">Right Isosceles</option>
+                            <option value="equilateral">Equilateral</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Component Primitive Super/Mega Settings */}
                     {(activePrimitive.type === 'super_vector' || activePrimitive.type === 'super_line' || activePrimitive.type === 'mega_vector' || activePrimitive.type === 'mega_line') && (
                       <div className="space-y-3 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800">
@@ -642,6 +773,78 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
 
                     <div className="space-y-2 pt-2 border-t border-slate-700/60">
+                      {/* Color Presets */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-semibold text-slate-400">Color Presets</label>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            title="Black & White"
+                            onClick={() =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, strokeColor: '#000000', fillColor: '#ffffff' },
+                              })
+                            }
+                            className="w-5 h-5 rounded border border-slate-600 bg-white hover:scale-110 transition flex items-center justify-center text-[8px] font-bold text-black"
+                          >
+                            B/W
+                          </button>
+                          <button
+                            type="button"
+                            title="Red Theme"
+                            onClick={() =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, strokeColor: '#ef4444', fillColor: '#fee2e2' },
+                              })
+                            }
+                            className="w-5 h-5 rounded border border-red-500 bg-red-100 hover:scale-110 transition flex items-center justify-center"
+                          >
+                            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Blue Theme"
+                            onClick={() =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, strokeColor: '#3b82f6', fillColor: '#dbeafe' },
+                              })
+                            }
+                            className="w-5 h-5 rounded border border-blue-500 bg-blue-100 hover:scale-110 transition flex items-center justify-center"
+                          >
+                            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Amber / Gold Theme"
+                            onClick={() =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, strokeColor: '#f59e0b', fillColor: '#fef3c7' },
+                              })
+                            }
+                            className="w-5 h-5 rounded border border-amber-500 bg-amber-100 hover:scale-110 transition flex items-center justify-center"
+                          >
+                            <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Emerald Green Theme"
+                            onClick={() =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, strokeColor: '#10b981', fillColor: '#d1fae5' },
+                              })
+                            }
+                            className="w-5 h-5 rounded border border-emerald-500 bg-emerald-100 hover:scale-110 transition flex items-center justify-center"
+                          >
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                          </button>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="text-[10px] text-slate-400">Stroke Style</label>
@@ -713,37 +916,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-slate-400">Stroke Opacity</label>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <label className="text-[10px] text-slate-400">Stroke Opacity</label>
+                            <span className="text-[9px] font-mono text-slate-400">
+                              {Math.round((activePrimitive.config.strokeOpacity ?? 1) * 100)}%
+                            </span>
+                          </div>
                           <input
                             type="range"
                             min="0"
                             max="1"
                             step="0.05"
-                            value={activePrimitive.config.strokeOpacity ?? 1.0}
+                            value={activePrimitive.config.strokeOpacity ?? 1}
                             onChange={(e) =>
                               onUpdatePrimitive(selectedPrimitiveIdx, {
                                 ...activePrimitive,
-                                config: { ...activePrimitive.config, strokeOpacity: parseFloat(e.target.value) || 0 },
+                                config: { ...activePrimitive.config, strokeOpacity: parseFloat(e.target.value) },
                               })
                             }
-                            className="w-full h-1 bg-slate-950 rounded appearance-none cursor-pointer accent-emerald-500"
+                            className="w-full accent-indigo-500"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-slate-400">Fill Opacity</label>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <label className="text-[10px] text-slate-400">Fill Opacity</label>
+                            <span className="text-[9px] font-mono text-slate-400">
+                              {Math.round((activePrimitive.config.fillOpacity ?? 1) * 100)}%
+                            </span>
+                          </div>
                           <input
                             type="range"
                             min="0"
                             max="1"
                             step="0.05"
-                            value={activePrimitive.config.fillOpacity ?? 1.0}
+                            value={activePrimitive.config.fillOpacity ?? 1}
                             onChange={(e) =>
                               onUpdatePrimitive(selectedPrimitiveIdx, {
                                 ...activePrimitive,
-                                config: { ...activePrimitive.config, fillOpacity: parseFloat(e.target.value) || 0 },
+                                config: { ...activePrimitive.config, fillOpacity: parseFloat(e.target.value) },
                               })
                             }
-                            className="w-full h-1 bg-slate-950 rounded appearance-none cursor-pointer accent-emerald-500"
+                            className="w-full accent-indigo-500"
                           />
                         </div>
                       </div>

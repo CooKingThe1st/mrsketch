@@ -1,5 +1,8 @@
+import os
 from fastapi import FastAPI, HTTPException, Response, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from models import ProjectLayout
 from compiler import compile_scene, compile_scene_to_base64
 import uvicorn
@@ -72,10 +75,21 @@ def backup_load():
                 data = json.load(f)
             if isinstance(data, dict) and 'scene' in data:
                 return data
-        return {"status": "empty"}
-    except Exception as e:
-        print("Backend Backup Load Error:", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+# Serve built frontend static files in Docker / production if static directory exists
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(static_dir):
+    assets_dir = os.path.join(static_dir, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        file_path = os.path.join(static_dir, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(static_dir, "index.html"))
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
