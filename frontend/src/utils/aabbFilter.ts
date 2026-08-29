@@ -176,6 +176,42 @@ export function isAABBIntersecting(
   return !(maxX < eMinX || minX > eMaxX || maxY < eMinY || minY > eMaxY);
 }
 
+export function computeContentBounds(layout: ProjectLayout, padding: number = 0.2): ExportBounds {
+  const { scene, definitions, exportBounds } = layout;
+  if (!scene || scene.length === 0) return exportBounds;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  scene.forEach((node) => {
+    const [nxMin, nyMin, nxMax, nyMax] = computeNodeAABB(node, definitions || {});
+    minX = Math.min(minX, nxMin);
+    maxX = Math.max(maxX, nxMax);
+    minY = Math.min(minY, nyMin);
+    maxY = Math.max(maxY, nyMax);
+  });
+
+  if (minX === Infinity || maxX === -Infinity) return exportBounds;
+
+  const pad = Math.max(0.05, padding);
+  let finalXMin = Math.round((minX - pad) * 100) / 100;
+  let finalXMax = Math.round((maxX + pad) * 100) / 100;
+  let finalYMin = Math.round((minY - pad) * 100) / 100;
+  let finalYMax = Math.round((maxY + pad) * 100) / 100;
+
+  if (finalXMax <= finalXMin) finalXMax = finalXMin + 1.0;
+  if (finalYMax <= finalYMin) finalYMax = finalYMin + 1.0;
+
+  return {
+    xMin: finalXMin,
+    xMax: finalXMax,
+    yMin: finalYMin,
+    yMax: finalYMax,
+  };
+}
+
 export function computeCropToBounds(layout: ProjectLayout, padding: number = 0.2): ExportBounds {
   const { scene, definitions, exportBounds } = layout;
   if (!scene || scene.length === 0) return exportBounds;

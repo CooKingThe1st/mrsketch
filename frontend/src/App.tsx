@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ProjectLayout, SceneNode, ExportBounds, MacroDefinition, RobotDefinition, PlotOptions, PrimitiveDefinition, PointBinding, DrawingMode, PendingShapeToAdd } from './types/schema';
 import { INITIAL_LAYOUT } from './utils/initialData';
 import { Sidebar } from './components/Sidebar';
@@ -14,17 +14,21 @@ import { getApiBaseUrl } from './utils/api';
 
 const LOCAL_STORAGE_KEY = 'mrsketch_project_layout_v1';
 
+let backupSaveDebounceTimer: any = null;
 const saveLayoutSafely = (layoutToSave: ProjectLayout) => {
   if (!layoutToSave || !Array.isArray(layoutToSave.scene) || !layoutToSave.exportBounds) return;
   try {
     const jsonStr = JSON.stringify(layoutToSave);
     localStorage.setItem(LOCAL_STORAGE_KEY, jsonStr);
     localStorage.setItem('mrsketch_project_layout_backup_v1', jsonStr);
-    fetch(`${getApiBaseUrl()}/api/backup-save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: jsonStr,
-    }).catch(() => {});
+    if (backupSaveDebounceTimer) clearTimeout(backupSaveDebounceTimer);
+    backupSaveDebounceTimer = setTimeout(() => {
+      fetch(`${getApiBaseUrl()}/api/backup-save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: jsonStr,
+      }).catch(() => {});
+    }, 400);
   } catch (e) {
     console.warn('Safe layout save failed:', e);
   }
@@ -71,8 +75,9 @@ export const computePointFromBinding = (binding: { nodeId: string; pointKey: str
 
   const resolveEdgePoint = (p0: [number, number], p1: [number, number], edgePrefix: string): [number, number] | null => {
     if (key === `${edgePrefix}_start`) return rotateLocal(p0[0], p0[1]);
-    if (key.startsWith(`${edgePrefix}_int_`)) {
-      const k = parseInt(key.replace(`${edgePrefix}_int_`, ''), 10);
+    if (key.startsWith(`${edgePrefix}_`)) {
+      const suffix = key.replace(`${edgePrefix}_`, '').replace('int_', '');
+      const k = parseInt(suffix, 10);
       if (!isNaN(k) && k >= 1 && k <= N) {
         const t = k / (N + 1);
         const px = p0[0] + t * (p1[0] - p0[0]);
@@ -84,52 +89,32 @@ export const computePointFromBinding = (binding: { nodeId: string; pointKey: str
   };
 
   if (targetNode.type === 'rect' || targetNode.type === 'obstacle') {
-    const w = targetNode.width || 3;
-    const h = targetNode.height || 2;
-    if (key === 'corner_tl') return rotateLocal(-w / 2, -h / 2);
-    if (key === 'corner_tr') return rotateLocal(w / 2, -h / 2);
-    if (key === 'corner_br') return rotateLocal(w / 2, h / 2);
-    if (key === 'corner_bl') return rotateLocal(-w / 2, h / 2);
-    if (key === 'mid_t') return rotateLocal(0, -h / 2);
-    if (key === 'mid_r') return rotateLocal(w / 2, 0);
-    if (key === 'mid_b') return rotateLocal(0, h / 2);
-    if (key === 'mid_l') return rotateLocal(-w / 2, 0);
-
-    const ptT = resolveEdgePoint([-w / 2, -h / 2], [w / 2, -h / 2], 'edge_t');
-    if (ptT) return ptT;
-    const ptR = resolveEdgePoint([w / 2, -h / 2], [w / 2, h / 2], 'edge_r');
-    if (ptR) return ptR;
-    const ptB = resolveEdgePoint([w / 2, h / 2], [-w / 2, h / 2], 'edge_b');
-    if (ptB) return ptB;
-    const ptL = resolveEdgePoint([-w / 2, h / 2], [-w / 2, -h / 2], 'edge_l');
-    if (ptL) return ptL;
+    const w = targetNode.width || 4;
+    const h = targetNode.height || 3;
+    const ptTop = resolveEdgePoint([-w / 2, h / 2], [w / 2, h / 2], 'edge_top') || resolveEdgePoint([-w / 2, -h / 2], [w / 2, -h / 2], 'edge_t');
+    if (ptTop) return ptTop;
+    const ptRight = resolveEdgePoint([w / 2, h / 2], [w / 2, -h / 2], 'edge_right') || resolveEdgePoint([w / 2, -h / 2], [w / 2, h / 2], 'edge_r');
+    if (ptRight) return ptRight;
+    const ptBottom = resolveEdgePoint([w / 2, -h / 2], [-w / 2, -h / 2], 'edge_bottom') || resolveEdgePoint([w / 2, h / 2], [-w / 2, h / 2], 'edge_b');
+    if (ptBottom) return ptBottom;
+    const ptLeft = resolveEdgePoint([-w / 2, -h / 2], [-w / 2, h / 2], 'edge_left') || resolveEdgePoint([-w / 2, h / 2], [-w / 2, -h / 2], 'edge_l');
+    if (ptLeft) return ptLeft;
   } else if (targetNode.type === 'circle') {
-    const r = targetNode.radius || 1.5;
-    if (key === 'cardinal_r') return rotateLocal(r, 0);
-    if (key === 'cardinal_l') return rotateLocal(-r, 0);
-    if (key === 'cardinal_b') return rotateLocal(0, r);
-    if (key === 'cardinal_t') return rotateLocal(0, -r);
-
-    if (key.startsWith('circle_p')) {
-      const idx = parseInt(key.replace('circle_p', ''), 10);
-      const totalPoints = 4 * (N + 1);
-      if (!isNaN(idx)) {
-        const angle = (idx * 2 * Math.PI) / totalPoints;
-        return rotateLocal(r * Math.cos(angle), r * Math.sin(angle));
+    const r = targetNode.radius || 2;
+    if (key.startsWith('circ_')) {
+      const ang = parseFloat(key.replace('circ_', ''));
+      if (!isNaN(ang)) {
+        const aRad = (ang * Math.PI) / 180;
+        return rotateLocal(r * Math.cos(aRad), r * Math.sin(aRad));
       }
     }
+    if (key === 'cardinal_r') return rotateLocal(r, 0);
+    if (key === 'cardinal_l') return rotateLocal(-r, 0);
+    if (key === 'cardinal_b') return rotateLocal(0, -r);
+    if (key === 'cardinal_t') return rotateLocal(0, r);
   } else if (targetNode.type === 'diamond') {
-    const w = targetNode.width || 3;
-    const h = targetNode.height || 2;
-    if (key === 'vertex_t') return rotateLocal(0, h / 2);
-    if (key === 'vertex_r') return rotateLocal(w / 2, 0);
-    if (key === 'vertex_b') return rotateLocal(0, -h / 2);
-    if (key === 'vertex_l') return rotateLocal(-w / 2, 0);
-    if (key === 'mid_tr') return rotateLocal(w / 4, h / 4);
-    if (key === 'mid_br') return rotateLocal(w / 4, -h / 4);
-    if (key === 'mid_bl') return rotateLocal(-w / 4, -h / 4);
-    if (key === 'mid_tl') return rotateLocal(-w / 4, h / 4);
-
+    const w = targetNode.width || 4;
+    const h = targetNode.height || 3;
     const ptTR = resolveEdgePoint([0, h / 2], [w / 2, 0], 'edge_tr');
     if (ptTR) return ptTR;
     const ptBR = resolveEdgePoint([w / 2, 0], [0, -h / 2], 'edge_br');
@@ -145,13 +130,6 @@ export const computePointFromBinding = (binding: { nodeId: string; pointKey: str
     const v0: [number, number] = triType === 'equilateral' ? [0, h * 0.66] : [-w / 2, -w / 2];
     const v1: [number, number] = triType === 'equilateral' ? [-w / 2, -h * 0.33] : [-w / 2, w / 2];
     const v2: [number, number] = triType === 'equilateral' ? [w / 2, -h * 0.33] : [w / 2, -w / 2];
-
-    if (key === 'vertex_0') return rotateLocal(v0[0], v0[1]);
-    if (key === 'vertex_1') return rotateLocal(v1[0], v1[1]);
-    if (key === 'vertex_2') return rotateLocal(v2[0], v2[1]);
-    if (key === 'mid_01') return rotateLocal((v0[0] + v1[0]) / 2, (v0[1] + v1[1]) / 2);
-    if (key === 'mid_12') return rotateLocal((v1[0] + v2[0]) / 2, (v1[1] + v2[1]) / 2);
-    if (key === 'mid_20') return rotateLocal((v2[0] + v0[0]) / 2, (v2[1] + v0[1]) / 2);
 
     const pt01 = resolveEdgePoint(v0, v1, 'edge_01');
     if (pt01) return pt01;
@@ -319,10 +297,14 @@ export function App() {
 
   const initialData = getInitialState();
   const [layout, setLayout] = useState<ProjectLayout>(initialData);
+  const layoutRef = useRef<ProjectLayout>(initialData);
+  layoutRef.current = layout;
   
-  // Stackable Undo History State
+  // Stackable Undo History State with Ref synchronization
   const [history, setHistory] = useState<ProjectLayout[]>([initialData]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const historyRef = useRef<ProjectLayout[]>([initialData]);
+  const historyIndexRef = useRef<number>(0);
   const [saveNotification, setSaveNotification] = useState<boolean>(false);
 
   // On mount, auto-load backend disk backup if present and local scene is initial default
@@ -333,6 +315,9 @@ export function App() {
         if (data && Array.isArray(data.scene) && data.scene.length > 0) {
           setLayout((curr) => {
             if (!curr || !Array.isArray(curr.scene) || curr.scene.length <= 4) {
+              historyRef.current = [data];
+              historyIndexRef.current = 0;
+              layoutRef.current = data;
               setHistory([data]);
               setHistoryIndex(0);
               saveLayoutSafely(data);
@@ -428,61 +413,63 @@ export function App() {
   useEffect(() => {
     if (autoSaveSeconds <= 0) return;
     const timer = setInterval(() => {
-      saveLayoutSafely(layout);
+      saveLayoutSafely(layoutRef.current);
     }, autoSaveSeconds * 1000);
     return () => clearInterval(timer);
-  }, [layout, autoSaveSeconds]);
+  }, [autoSaveSeconds]);
 
-  const updateLayoutWithHistory = (newLayout: ProjectLayout) => {
+  const updateLayoutWithHistory = useCallback((newLayout: ProjectLayout) => {
     if (!newLayout || !Array.isArray(newLayout.scene)) return;
-    setLayout(newLayout);
-    setHistory((prevHistory) => {
-      const sliced = prevHistory.slice(0, historyIndex + 1);
-      return [...sliced, newLayout];
-    });
-    setHistoryIndex((prevIndex) => prevIndex + 1);
-    saveLayoutSafely(newLayout);
-  };
 
-  const triggerSaveNotification = () => {
-    saveLayoutSafely(layout);
+    // Truncate any redo future at the current index and append new layout
+    const nextHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
+    nextHistory.push(newLayout);
+
+    if (nextHistory.length > 100) {
+      nextHistory.shift();
+    }
+
+    historyRef.current = nextHistory;
+    historyIndexRef.current = nextHistory.length - 1;
+    layoutRef.current = newLayout;
+
+    setLayout(newLayout);
+    setHistory(nextHistory);
+    setHistoryIndex(historyIndexRef.current);
+    saveLayoutSafely(newLayout);
+  }, []);
+
+  const triggerSaveNotification = useCallback(() => {
+    saveLayoutSafely(layoutRef.current);
     setSaveNotification(true);
     setTimeout(() => setSaveNotification(false), 2000);
-  };
+  }, []);
 
-  const handleUndo = () => {
-    setHistory((currentHistory) => {
-      setHistoryIndex((currentIndex) => {
-        if (currentIndex <= 0) return currentIndex;
-        const targetIndex = currentIndex - 1;
-        const prevLayout = currentHistory[targetIndex];
-        if (prevLayout && Array.isArray(prevLayout.scene)) {
-          setLayout(prevLayout);
-          saveLayoutSafely(prevLayout);
-          return targetIndex;
-        }
-        return currentIndex;
-      });
-      return currentHistory;
-    });
-  };
+  const handleUndo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    const targetIndex = historyIndexRef.current - 1;
+    const prevLayout = historyRef.current[targetIndex];
+    if (prevLayout && Array.isArray(prevLayout.scene)) {
+      historyIndexRef.current = targetIndex;
+      layoutRef.current = prevLayout;
+      setLayout(prevLayout);
+      setHistoryIndex(targetIndex);
+      saveLayoutSafely(prevLayout);
+    }
+  }, []);
 
-  const handleRedo = () => {
-    setHistory((currentHistory) => {
-      setHistoryIndex((currentIndex) => {
-        if (currentIndex >= currentHistory.length - 1) return currentIndex;
-        const targetIndex = currentIndex + 1;
-        const nextLayout = currentHistory[targetIndex];
-        if (nextLayout && Array.isArray(nextLayout.scene)) {
-          setLayout(nextLayout);
-          saveLayoutSafely(nextLayout);
-          return targetIndex;
-        }
-        return currentIndex;
-      });
-      return currentHistory;
-    });
-  };
+  const handleRedo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    const targetIndex = historyIndexRef.current + 1;
+    const nextLayout = historyRef.current[targetIndex];
+    if (nextLayout && Array.isArray(nextLayout.scene)) {
+      historyIndexRef.current = targetIndex;
+      layoutRef.current = nextLayout;
+      setLayout(nextLayout);
+      setHistoryIndex(targetIndex);
+      saveLayoutSafely(nextLayout);
+    }
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -500,10 +487,14 @@ export function App() {
         return;
       }
 
-      // Ctrl + Z Undo Shortcut
+      // Ctrl + Z Undo Shortcut (and Ctrl+Shift+Z for redo)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
-        handleUndo();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
         return;
       }
 
@@ -1124,14 +1115,15 @@ export function App() {
   };
 
   const handleDeletePrimitive = (idx: number) => {
-    if (!activeRobotDefId || !layout.definitions[activeRobotDefId]) return;
-    const currentDef = layout.definitions[activeRobotDefId];
+    const currentLayout = layoutRef.current;
+    if (!activeRobotDefId || !currentLayout.definitions[activeRobotDefId]) return;
+    const currentDef = currentLayout.definitions[activeRobotDefId];
     const updatedPrims = currentDef.primitives.filter((_, i) => i !== idx);
 
     updateLayoutWithHistory({
-      ...layout,
+      ...currentLayout,
       definitions: {
-        ...layout.definitions,
+        ...currentLayout.definitions,
         [activeRobotDefId]: { ...currentDef, primitives: updatedPrims },
       },
     });
@@ -1139,14 +1131,15 @@ export function App() {
   };
 
   const handleDeletePrimitives = (idxs: number[]) => {
-    if (!activeRobotDefId || !layout.definitions[activeRobotDefId]) return;
-    const currentDef = layout.definitions[activeRobotDefId];
+    const currentLayout = layoutRef.current;
+    if (!activeRobotDefId || !currentLayout.definitions[activeRobotDefId]) return;
+    const currentDef = currentLayout.definitions[activeRobotDefId];
     const updatedPrims = currentDef.primitives.filter((_, i) => !idxs.includes(i));
 
     updateLayoutWithHistory({
-      ...layout,
+      ...currentLayout,
       definitions: {
-        ...layout.definitions,
+        ...currentLayout.definitions,
         [activeRobotDefId]: { ...currentDef, primitives: updatedPrims },
       },
     });
@@ -1155,21 +1148,23 @@ export function App() {
   };
 
   const handleUpdatePrimitive = (idx: number, prim: PrimitiveDefinition) => {
-    if (!activeRobotDefId || !layout.definitions[activeRobotDefId]) return;
-    const currentDef = layout.definitions[activeRobotDefId];
+    const currentLayout = layoutRef.current;
+    if (!activeRobotDefId || !currentLayout.definitions[activeRobotDefId]) return;
+    const currentDef = currentLayout.definitions[activeRobotDefId];
     const updatedPrims = [...currentDef.primitives];
     updatedPrims[idx] = prim;
 
     updateLayoutWithHistory({
-      ...layout,
+      ...currentLayout,
       definitions: {
-        ...layout.definitions,
+        ...currentLayout.definitions,
         [activeRobotDefId]: { ...currentDef, primitives: updatedPrims },
       },
     });
   };
 
   const handleUpdateNodes = (updatedNodes: SceneNode[]) => {
+    const currentLayout = layoutRef.current;
     updatedNodes.forEach((node) => {
       setShapeStyleMemory((prev) => ({
         ...prev,
@@ -1183,9 +1178,9 @@ export function App() {
       }));
     });
 
-    const syncedScene = syncBoundNodesForGroup(layout.scene, updatedNodes);
+    const syncedScene = syncBoundNodesForGroup(currentLayout.scene, updatedNodes);
     updateLayoutWithHistory({
-      ...layout,
+      ...currentLayout,
       scene: syncedScene,
     });
   };
@@ -1195,9 +1190,10 @@ export function App() {
   };
 
   const handleDeleteNode = (id: string) => {
+    const currentLayout = layoutRef.current;
     updateLayoutWithHistory({
-      ...layout,
-      scene: layout.scene.filter((n) => n.id !== id),
+      ...currentLayout,
+      scene: currentLayout.scene.filter((n) => n.id !== id),
     });
     if (selectedNodeId === id) setSelectedNodeId(null);
     setSelectedNodeIds((ids) => ids.filter((nodeId) => nodeId !== id));
@@ -1205,40 +1201,45 @@ export function App() {
 
   const handleDeleteNodes = (ids: string[]) => {
     if (ids.length === 0) return;
+    const currentLayout = layoutRef.current;
     updateLayoutWithHistory({
-      ...layout,
-      scene: layout.scene.filter((n) => !ids.includes(n.id)),
+      ...currentLayout,
+      scene: currentLayout.scene.filter((n) => !ids.includes(n.id)),
     });
     setSelectedNodeIds([]);
     setSelectedNodeId(null);
   };
 
   const handleUpdateExportBounds = (newBounds: ExportBounds) => {
+    const currentLayout = layoutRef.current;
     updateLayoutWithHistory({
-      ...layout,
+      ...currentLayout,
       exportBounds: newBounds,
     });
   };
 
   const handleUpdateMacros = (newMacros: Record<string, MacroDefinition>) => {
+    const currentLayout = layoutRef.current;
     updateLayoutWithHistory({
-      ...layout,
+      ...currentLayout,
       macros: newMacros,
     });
   };
 
   const handleUpdateDefinitions = (newDefs: Record<string, RobotDefinition>) => {
-    const filteredScene = layout.scene.filter(n => n.type !== 'alias' || (n.definitionId && n.definitionId in newDefs));
+    const currentLayout = layoutRef.current;
+    const filteredScene = currentLayout.scene.filter(n => n.type !== 'alias' || (n.definitionId && n.definitionId in newDefs));
     updateLayoutWithHistory({
-      ...layout,
+      ...currentLayout,
       definitions: newDefs,
       scene: filteredScene,
     });
   };
 
   const handleUpdatePlotOptions = (newOpts: PlotOptions) => {
+    const currentLayout = layoutRef.current;
     updateLayoutWithHistory({
-      ...layout,
+      ...currentLayout,
       plotOptions: newOpts,
     });
   };
@@ -1323,7 +1324,7 @@ export function App() {
       )}
 
       {/* Top Application Header */}
-      <header className="h-13 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between z-20 shrink-0 select-none">
+      <header className="h-13 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between z-40 shrink-0 select-none">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2.5">
             <button
@@ -1610,6 +1611,43 @@ export function App() {
                       onChange={(e) => handleUpdatePlotOptions({ ...layout.plotOptions, renderMathOnCanvas: e.target.checked })}
                       className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
                     />
+                  </div>
+
+                  {/* Export Framing / Artboard Crop Mode */}
+                  <div className="space-y-2 border-t border-slate-800 pt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col pr-2">
+                        <span className="text-xs font-bold text-slate-200">Fit Artboard to Content</span>
+                        <span className="text-[10px] text-slate-400 leading-tight">
+                          {layout.plotOptions.cropToContent
+                            ? 'Auto-wraps all entities (ignores purple box)'
+                            : 'Fixed Viewport Frame (clips overflow)'}
+                        </span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={layout.plotOptions.cropToContent ?? false}
+                        onChange={(e) => handleUpdatePlotOptions({ ...layout.plotOptions, cropToContent: e.target.checked })}
+                        className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                      />
+                    </div>
+                    {layout.plotOptions.cropToContent && (
+                      <div className="space-y-1 pl-1">
+                        <div className="flex justify-between items-center text-xs">
+                          <label className="text-[10px] font-semibold text-slate-400">Content Padding</label>
+                          <span className="font-mono text-indigo-400 font-bold">{(layout.plotOptions.cropPadding ?? 0.2).toFixed(2)} u</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.0"
+                          max="2.0"
+                          step="0.05"
+                          value={layout.plotOptions.cropPadding ?? 0.2}
+                          onChange={(e) => handleUpdatePlotOptions({ ...layout.plotOptions, cropPadding: parseFloat(e.target.value) || 0 })}
+                          className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Auto-Save Interval */}

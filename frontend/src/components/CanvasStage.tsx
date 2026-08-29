@@ -3,85 +3,8 @@ import { Stage, Layer, Group, Rect, Circle, Line, Arrow, Text, Tag, Label } from
 import type { SceneNode, RobotDefinition, ExportBounds, PrimitiveDefinition, PointBinding, PlotOptions, DrawingMode, PendingShapeToAdd, MacroDefinition } from '../types/schema';
 import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight, Trash2 } from 'lucide-react';
 import { syncBoundNodesForGroup } from '../App';
-import katex from 'katex';
-
-export function renderLatexToHtml(rawLabel: string, macros?: Record<string, MacroDefinition>): string {
-  if (!rawLabel) return '';
-  let text = rawLabel;
-
-  if (macros) {
-    Object.values(macros).forEach((macro) => {
-      const cmd = macro.command.startsWith('\\') ? macro.command : `\\${macro.command}`;
-      if (macro.argsCount === 0) {
-        text = text.replaceAll(cmd, macro.template || '');
-      } else {
-        const escapedCmd = cmd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedCmd + '(?:\\{([^{}]*)\\}){' + macro.argsCount + '}', 'g');
-        text = text.replace(regex, (...args) => {
-          let res = macro.template || '';
-          for (let i = 1; i <= macro.argsCount; i++) {
-            const argVal = args[i] !== undefined ? args[i] : '';
-            res = res.replaceAll(`{#${i}}`, argVal).replaceAll(`#${i}`, argVal);
-          }
-          return res;
-        });
-      }
-    });
-  }
-
-  // Expand \ifblank{#1}{then}{else}
-  text = text.replace(/\\ifblank\{([^}]*)\}\{([^}]*)\}\{([^}]*)\}/g, (_m, arg, thenVal, elseVal) => {
-    return arg.trim() === '' ? thenVal : elseVal;
-  });
-  text = text.replaceAll('\\bm{', '\\mathbf{').replaceAll('\\boldsymbol{', '\\mathbf{');
-
-  const lines = text.split('\n');
-  return lines
-    .map((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return '<div class="katex-line" style="line-height: 1.15; height: 1em;"></div>';
-
-      const renderSnippet = (mathSnippet: string) => {
-        // Replace unescaped spaces with '\ ' so KaTeX preserves literal whitespace in math mode
-        const spaced = mathSnippet.replace(/(?<!\\) /g, '\\ ');
-        try {
-          return katex.renderToString(spaced, {
-            throwOnError: false,
-            displayMode: false,
-          });
-        } catch {
-          return mathSnippet;
-        }
-      };
-
-      let lineHtml = '';
-      if (trimmed.includes('$')) {
-        const parts = trimmed.split('$');
-        const resHtml: string[] = [];
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i];
-          if (!part) continue;
-          if (i % 2 === 1) {
-            // Inside $ ... $
-            resHtml.push(renderSnippet(part));
-          } else {
-            // Outside $ ... $ plain text
-            const safeText = part
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/ /g, '&nbsp;');
-            resHtml.push(`<span>${safeText}</span>`);
-          }
-        }
-        lineHtml = resHtml.join('');
-      } else {
-        lineHtml = renderSnippet(trimmed);
-      }
-      return `<div class="katex-line" style="line-height: 1.15; margin: 0; padding: 0;">${lineHtml}</div>`;
-    })
-    .join('');
-}
+import { renderLatexToHtml } from '../utils/latexRenderer';
+import { useMacroParser } from '../hooks/useMacroParser';
 
 interface CanvasStageProps {
   mode: 'main_scene' | 'robot_designer';
@@ -444,7 +367,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   }, [isPanning, panStart]);
 
   const [quickMenuPos, setQuickMenuPos] = useState<{ x: number; y: number; sciX: number; sciY: number } | null>(null);
-  const [activeSnapPreview, setActiveSnapPreview] = useState<{ sciX: number; sciY: number; type: 'shape' | 'grid' } | null>(null);
+  const [activeSnapPreview, setActiveSnapPreview] = useState<{ sciX: number; sciY: number; type: 'shape' | 'line_guidance' | 'grid' } | null>(null);
   const [editingLabelNodeId, setEditingLabelNodeId] = useState<string | null>(null);
   const [drawStartBinding, setDrawStartBinding] = useState<PointBinding | undefined>(undefined);
   const [superEndBinding, setSuperEndBinding] = useState<PointBinding | undefined>(undefined);
@@ -452,17 +375,77 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
   const lastRightClickTimeRef = useRef<number>(0);
   const lastRightClickPosRef = useRef<{ x: number; y: number } | null>(null);
-  const lastLabelClickRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
 
   const popoverContainerRef = useRef<HTMLDivElement>(null);
   const popoverTextareaRef = useRef<HTMLTextAreaElement>(null);
   const popoverOpenedAtRef = useRef<number>(0);
 
+  const [popoverLabelValue, setPopoverLabelValue] = useState<string>('');
+  const [showPopoverMacroSuggestions, setShowPopoverMacroSuggestions] = useState<boolean>(false);
+  const [popoverActiveSuggestionIdx, setPopoverActiveSuggestionIdx] = useState<number>(0);
+
+  const { suggestions: popoverSuggestions } = useMacroParser(macros || {}, popoverLabelValue);
+
+  useEffect(() => {
+    setPopoverActiveSuggestionIdx(0);
+  }, [popoverSuggestions]);
+
   useEffect(() => {
     if (editingLabelNodeId) {
+      const node = scene.find((n) => n.id === editingLabelNodeId);
+      setPopoverLabelValue(node?.label || '');
+      setShowPopoverMacroSuggestions(false);
+      setPopoverActiveSuggestionIdx(0);
       popoverOpenedAtRef.current = Date.now();
+
+      const timer = setTimeout(() => {
+        if (popoverTextareaRef.current) {
+          popoverTextareaRef.current.focus();
+          popoverTextareaRef.current.select();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [editingLabelNodeId]);
+
+  const handleSelectPopoverMacro = (macro: { command: string; argsCount?: number }) => {
+    const current = popoverLabelValue;
+    const textarea = popoverTextareaRef.current;
+    const cursorPos = textarea ? textarea.selectionStart : current.length;
+    const textBeforeCursor = current.slice(0, cursorPos);
+    const textAfterCursor = current.slice(cursorPos);
+
+    const lastBackslash = textBeforeCursor.lastIndexOf('\\');
+    const prefix = lastBackslash >= 0 ? textBeforeCursor.slice(0, lastBackslash) : textBeforeCursor;
+
+    let inserted = macro.command;
+    let targetCursorOffset = inserted.length;
+
+    if ((macro.argsCount ?? 0) > 0) {
+      inserted = `${macro.command}{}`;
+      targetCursorOffset = macro.command.length + 1;
+    }
+
+    const newText = prefix + inserted + textAfterCursor;
+    const targetCursorPos = prefix.length + targetCursorOffset;
+
+    setPopoverLabelValue(newText);
+    setShowPopoverMacroSuggestions(false);
+
+    if (editingLabelNodeId) {
+      const targetNode = scene.find((n) => n.id === editingLabelNodeId);
+      if (targetNode) {
+        onUpdateNode({ ...targetNode, label: newText });
+      }
+    }
+
+    setTimeout(() => {
+      if (popoverTextareaRef.current) {
+        popoverTextareaRef.current.focus();
+        popoverTextareaRef.current.setSelectionRange(targetCursorPos, targetCursorPos);
+      }
+    }, 10);
+  };
 
   useEffect(() => {
     if (!editingLabelNodeId) return;
@@ -584,34 +567,95 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     return points;
   };
 
-  const getSnappedSciPoint = (
-    pointerPixelX: number,
-    pointerPixelY: number,
-    forceEnable: boolean = false
-  ): { sciX: number; sciY: number; isSnapped: boolean; binding?: PointBinding; snapType?: 'shape' | 'grid' } => {
-    const rawSciX = Math.round(toSciX(pointerPixelX) * 10) / 10;
-    const rawSciY = Math.round(toSciY(pointerPixelY) * 10) / 10;
+  // Helper to compute soft guidance snap points from lines and vectors (unlinked, coincidence snap)
+  const getLineVectorGuidancePoints = (
+    excludeNodeId?: string,
+    excludePoint?: [number, number]
+  ): Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> => {
+    if (mode === 'robot_designer') return [];
+    const points: Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> = [];
 
-    if (!forceEnable && drawingMode === 'select') {
-      return { sciX: rawSciX, sciY: rawSciY, isSnapped: false };
-    }
+    scene.forEach((node) => {
+      if (excludeNodeId && node.id === excludeNodeId) return;
+      const rad = ((node.rotation || 0) * Math.PI) / 180;
+      const cosR = Math.cos(rad);
+      const sinR = Math.sin(rad);
 
-    const snapPoints = getGuidanceSnapPoints();
-    let minDistance = Infinity;
-    let bestSnapPoint: { sciX: number; sciY: number; nodeId: string; pointKey: string } | null = null;
+      const rotatePoint = (dx: number, dy: number, pointKey: string) => {
+        const rx = node.x + (dx * cosR - dy * sinR);
+        const ry = node.y + (dx * sinR + dy * cosR);
+        return { sciX: rx, sciY: ry, nodeId: node.id, pointKey };
+      };
 
-    snapPoints.forEach((sp: { sciX: number; sciY: number; nodeId: string; pointKey: string }) => {
-      const px = toPixelX(sp.sciX);
-      const py = toPixelY(sp.sciY);
-      const dist = Math.hypot(pointerPixelX - px, pointerPixelY - py);
-      if (dist <= 16 && dist < minDistance) {
-        minDistance = dist;
-        bestSnapPoint = sp;
+      const pushIfValid = (pt: { sciX: number; sciY: number; nodeId: string; pointKey: string }) => {
+        if (excludePoint && Math.hypot(pt.sciX - excludePoint[0], pt.sciY - excludePoint[1]) < 0.05) {
+          return;
+        }
+        points.push(pt);
+      };
+
+      if (
+        (node.type === 'vector' || node.type === 'line' || node.type === 'super_vector' || node.type === 'super_line') &&
+        Array.isArray(node.points) &&
+        node.points.length >= 4
+      ) {
+        pushIfValid(rotatePoint(node.points[0], node.points[1], `${node.type}_start`));
+        pushIfValid(rotatePoint(node.points[2], node.points[3], `${node.type}_end`));
+        if (
+          (node.type === 'super_vector' || node.type === 'super_line') &&
+          Array.isArray(node.controlPoint) &&
+          node.controlPoint.length >= 2
+        ) {
+          pushIfValid(rotatePoint(node.controlPoint[0], node.controlPoint[1], 'super_control'));
+        }
+      } else if (
+        (node.type === 'mega_vector' || node.type === 'mega_line') &&
+        Array.isArray(node.points) &&
+        node.points.length >= 4
+      ) {
+        for (let i = 0; i < node.points.length; i += 2) {
+          pushIfValid(rotatePoint(node.points[i], node.points[i + 1], `mega_${i / 2}`));
+        }
       }
     });
 
-    const targetSnap = bestSnapPoint as { sciX: number; sciY: number; nodeId: string; pointKey: string } | null;
-    if (targetSnap) {
+    return points;
+  };
+
+  const getSnappedSciPoint = (
+    pointerPixelX: number,
+    pointerPixelY: number,
+    forceEnable: boolean = false,
+    excludeNodeId?: string,
+    excludePoint?: [number, number]
+  ): { sciX: number; sciY: number; isSnapped: boolean; binding?: PointBinding; snapType?: 'shape' | 'line_guidance' | 'grid' } => {
+    const rawSciX = toSciX(pointerPixelX);
+    const rawSciY = toSciY(pointerPixelY);
+
+    if (!forceEnable && drawingMode === 'select') {
+      return { sciX: Math.round(rawSciX * 100) / 100, sciY: Math.round(rawSciY * 100) / 100, isSnapped: false };
+    }
+
+    // PRIORITY 1: Shape Hard Snap Link (Creates binding, Red Indicator)
+    const shapeSnapPoints = getGuidanceSnapPoints();
+    let minShapeDistance = Infinity;
+    let bestShapeSnapPoint: { sciX: number; sciY: number; nodeId: string; pointKey: string } | null = null;
+
+    shapeSnapPoints.forEach((sp) => {
+      if (excludePoint && Math.hypot(sp.sciX - excludePoint[0], sp.sciY - excludePoint[1]) < 0.05) {
+        return;
+      }
+      const px = toPixelX(sp.sciX);
+      const py = toPixelY(sp.sciY);
+      const dist = Math.hypot(pointerPixelX - px, pointerPixelY - py);
+      if (dist <= 16 && dist < minShapeDistance) {
+        minShapeDistance = dist;
+        bestShapeSnapPoint = sp;
+      }
+    });
+
+    if (bestShapeSnapPoint) {
+      const targetSnap = bestShapeSnapPoint as { sciX: number; sciY: number; nodeId: string; pointKey: string };
       return {
         sciX: Math.round(targetSnap.sciX * 100) / 100,
         sciY: Math.round(targetSnap.sciY * 100) / 100,
@@ -621,7 +665,33 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       };
     }
 
-    // Grid snapping check (guidance without node binding)
+    // PRIORITY 2: Line / Vector Soft Guidance Snap (Unlinked coincidence snap, Yellow Indicator)
+    const lineSnapPoints = getLineVectorGuidancePoints(excludeNodeId, excludePoint);
+    let minLineDistance = Infinity;
+    let bestLineSnapPoint: { sciX: number; sciY: number; nodeId: string; pointKey: string } | null = null;
+
+    lineSnapPoints.forEach((sp) => {
+      const px = toPixelX(sp.sciX);
+      const py = toPixelY(sp.sciY);
+      const dist = Math.hypot(pointerPixelX - px, pointerPixelY - py);
+      if (dist <= 16 && dist < minLineDistance) {
+        minLineDistance = dist;
+        bestLineSnapPoint = sp;
+      }
+    });
+
+    if (bestLineSnapPoint) {
+      const targetSnap = bestLineSnapPoint as { sciX: number; sciY: number; nodeId: string; pointKey: string };
+      return {
+        sciX: Math.round(targetSnap.sciX * 100) / 100,
+        sciY: Math.round(targetSnap.sciY * 100) / 100,
+        isSnapped: true,
+        binding: undefined, // Unlinked soft guidance!
+        snapType: 'line_guidance',
+      };
+    }
+
+    // PRIORITY 3: Grid Snapping (Unlinked, Emerald/Cyan Indicator)
     const unitStep = getAdaptiveGridStep(scale);
     const gridSciX = Math.round(rawSciX / unitStep) * unitStep;
     const gridSciY = Math.round(rawSciY / unitStep) * unitStep;
@@ -629,7 +699,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     const gridPy = toPixelY(gridSciY);
     const gridDist = Math.hypot(pointerPixelX - gridPx, pointerPixelY - gridPy);
 
-    if (gridDist <= 14) {
+    if (gridDist <= 16) {
       return {
         sciX: Math.round(gridSciX * 100) / 100,
         sciY: Math.round(gridSciY * 100) / 100,
@@ -639,7 +709,25 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       };
     }
 
-    return { sciX: rawSciX, sciY: rawSciY, isSnapped: false };
+    // Also check integer unit grid snapping if unitStep > 1.0 so individual coordinates (1, 2, 3...) are not skipped
+    if (unitStep > 1.0) {
+      const intSciX = Math.round(rawSciX);
+      const intSciY = Math.round(rawSciY);
+      const intPx = toPixelX(intSciX);
+      const intPy = toPixelY(intSciY);
+      const intDist = Math.hypot(pointerPixelX - intPx, pointerPixelY - intPy);
+      if (intDist <= 16) {
+        return {
+          sciX: Math.round(intSciX * 100) / 100,
+          sciY: Math.round(intSciY * 100) / 100,
+          isSnapped: true,
+          binding: undefined,
+          snapType: 'grid',
+        };
+      }
+    }
+
+    return { sciX: Math.round(rawSciX * 100) / 100, sciY: Math.round(rawSciY * 100) / 100, isSnapped: false };
   };
 
   const handleMouseDown = (e: any) => {
@@ -765,30 +853,38 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       }
     }
 
-    const snapResult = getSnappedSciPoint(pointerPos.x, pointerPos.y);
-    let sciX = snapResult.sciX;
-    let sciY = snapResult.sciY;
+    if (drawingMode !== 'select') {
+      const snapResult = getSnappedSciPoint(
+        pointerPos.x,
+        pointerPos.y,
+        true,
+        undefined,
+        drawStart ? drawStart : (megaPoints.length > 0 ? megaPoints[megaPoints.length - 1] : undefined)
+      );
+      let sciX = snapResult.sciX;
+      let sciY = snapResult.sciY;
 
-    if (snapResult.isSnapped && snapResult.snapType) {
-      setActiveSnapPreview({ sciX, sciY, type: snapResult.snapType });
-    } else {
-      setActiveSnapPreview(null);
-    }
-
-    if (e.evt.ctrlKey) {
-      if (drawStart) {
-        const [sx, sy] = snapTo45Degrees(drawStart[0], drawStart[1], sciX, sciY);
-        sciX = Math.round(sx * 10) / 10;
-        sciY = Math.round(sy * 10) / 10;
-      } else if (megaPoints.length > 0) {
-        const lastPt = megaPoints[megaPoints.length - 1];
-        const [sx, sy] = snapTo45Degrees(lastPt[0], lastPt[1], sciX, sciY);
-        sciX = Math.round(sx * 10) / 10;
-        sciY = Math.round(sy * 10) / 10;
+      if (snapResult.isSnapped && snapResult.snapType) {
+        setActiveSnapPreview({ sciX, sciY, type: snapResult.snapType });
+      } else {
+        setActiveSnapPreview(null);
       }
-    }
 
-    setDrawHover([sciX, sciY]);
+      if (e.evt.ctrlKey) {
+        if (drawStart) {
+          const [sx, sy] = snapTo45Degrees(drawStart[0], drawStart[1], sciX, sciY);
+          sciX = Math.round(sx * 10) / 10;
+          sciY = Math.round(sy * 10) / 10;
+        } else if (megaPoints.length > 0) {
+          const lastPt = megaPoints[megaPoints.length - 1];
+          const [sx, sy] = snapTo45Degrees(lastPt[0], lastPt[1], sciX, sciY);
+          sciX = Math.round(sx * 10) / 10;
+          sciY = Math.round(sy * 10) / 10;
+        }
+      }
+
+      setDrawHover([sciX, sciY]);
+    }
   };
 
   const handleMouseUp = (e: any) => {
@@ -1035,8 +1131,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       return 200;
     }
     const resMultiplier = plotOptions?.gridResolution ?? 1.0;
-    const steps = [0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0];
-    const targetPx = 30 * resMultiplier;
+    const steps = [0.05, 0.1, 0.2, 0.5, 1.0, 5.0, 10.0, 20.0, 50.0];
+    const targetPx = 18 * resMultiplier;
     for (const st of steps) {
       if (st * scaleVal >= targetPx) {
         return st;
@@ -1804,7 +1900,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                     }}
                     onDragMove={(e) => {
                       const absPos = e.target.getAbsolutePosition();
-                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true, node.id);
                       if (snap.isSnapped && snap.snapType) {
                         setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
                       } else {
@@ -1826,7 +1922,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                       e.cancelBubble = true;
                       setActiveSnapPreview(null);
                       const absPos = e.target.getAbsolutePosition();
-                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                      const snap = getSnappedSciPoint(absPos.x, absPos.y, true, node.id);
 
                       let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
                       let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
@@ -1895,7 +1991,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                       }}
                       onDragMove={(e) => {
                         const absPos = e.target.getAbsolutePosition();
-                        const snap = getSnappedSciPoint(absPos.x + 5, absPos.y + 5, true);
+                        const snap = getSnappedSciPoint(absPos.x + 5, absPos.y + 5, true, node.id);
                         if (snap.isSnapped && snap.snapType) {
                           setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
                         } else {
@@ -1906,7 +2002,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                         e.cancelBubble = true;
                         setActiveSnapPreview(null);
                         const absPos = e.target.getAbsolutePosition();
-                        const snap = getSnappedSciPoint(absPos.x + 5, absPos.y + 5, true);
+                        const snap = getSnappedSciPoint(absPos.x + 5, absPos.y + 5, true, node.id);
 
                         let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x + 5);
                         let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y + 5);
@@ -1955,7 +2051,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                       }}
                       onDragMove={(e) => {
                         const absPos = e.target.getAbsolutePosition();
-                        const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                        const snap = getSnappedSciPoint(absPos.x, absPos.y, true, node.id);
                         if (snap.isSnapped && snap.snapType) {
                           setActiveSnapPreview({ sciX: snap.sciX, sciY: snap.sciY, type: snap.snapType });
                         } else {
@@ -1966,7 +2062,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                         e.cancelBubble = true;
                         setActiveSnapPreview(null);
                         const absPos = e.target.getAbsolutePosition();
-                        const snap = getSnappedSciPoint(absPos.x, absPos.y, true);
+                        const snap = getSnappedSciPoint(absPos.x, absPos.y, true, node.id);
 
                         let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
                         let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
@@ -2428,21 +2524,20 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 );
               })()}
 
-              {/* Draggable handle for Annotation Label */}
-              {node.type !== 'text' && node.label && (() => {
-                const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle';
+              {/* Draggable dashed circle handle for Annotation Label */}
+              {node.type !== 'text' && node.label && node.label.trim() && (() => {
+                const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle' || node.type === 'alias';
                 const defaultOffX = isShape ? 0.0 : 0.3;
                 const defaultOffY = isShape ? 0.0 : 0.3;
                 const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
                 const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
+                const labelHandleRadius = Math.max(7, 9 * zoomRatio);
+
                 return (
-                  <Circle
+                  <Group
+                    key={`label_handle_group_${node.id}`}
                     x={lox}
                     y={loy}
-                    radius={6}
-                    fill="#c084fc"
-                    stroke="#ffffff"
-                    strokeWidth={1.5}
                     draggable
                     onMouseEnter={(e) => {
                       const stage = e.target.getStage();
@@ -2451,6 +2546,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                     onMouseLeave={(e) => {
                       const stage = e.target.getStage();
                       if (stage) stage.container().style.cursor = 'default';
+                    }}
+                    onDblClick={(e) => {
+                      e.cancelBubble = true;
+                      popoverOpenedAtRef.current = Date.now();
+                      setEditingLabelNodeId(node.id);
                     }}
                     onDragStart={(e) => {
                       e.cancelBubble = true;
@@ -2468,7 +2568,22 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                         labelOffsetY: newOffsetY,
                       });
                     }}
-                  />
+                  >
+                    {/* Secondary dashed circle for text label */}
+                    <Circle
+                      radius={labelHandleRadius}
+                      stroke="#f59e0b"
+                      strokeWidth={1.5}
+                      dash={[3, 3]}
+                      fill="rgba(245, 158, 11, 0.15)"
+                      hitStrokeWidth={12}
+                    />
+                    {/* Inner anchor dot */}
+                    <Circle
+                      radius={2.5}
+                      fill="#f59e0b"
+                    />
+                  </Group>
                 );
               })()}
             </>
@@ -2966,7 +3081,44 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
           const isMathMode = plotOptions?.renderMathOnCanvas ?? true;
           if (isMathMode) {
-            return null;
+            return (
+              <Circle
+                key={`math_label_hit_${node.id}`}
+                x={lox}
+                y={loy}
+                radius={Math.max(12, 16 * zoomRatio)}
+                fill="transparent"
+                hitStrokeWidth={16}
+                onClick={(e) => {
+                  if (drawingMode === 'select') {
+                    e.cancelBubble = true;
+                    if (e.evt.ctrlKey || e.evt.metaKey) {
+                      if (selectedNodeIds.includes(node.id)) {
+                        const newIds = selectedNodeIds.filter((id) => id !== node.id);
+                        onSelectNodes(newIds);
+                        onSelectNode(newIds.length > 0 ? newIds[newIds.length - 1] : null);
+                      } else {
+                        const newIds = [...selectedNodeIds, node.id];
+                        onSelectNodes(newIds);
+                        onSelectNode(node.id);
+                      }
+                    } else {
+                      onSelectNode(node.id);
+                      onSelectNodes([node.id]);
+                    }
+                  }
+                }}
+                onDblClick={(e) => {
+                  if (drawingMode === 'select') {
+                    e.cancelBubble = true;
+                    onSelectNode(node.id);
+                    onSelectNodes([node.id]);
+                    popoverOpenedAtRef.current = Date.now();
+                    setEditingLabelNodeId(node.id);
+                  }
+                }}
+              />
+            );
           }
 
           return (
@@ -5113,10 +5265,17 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           {mode === 'main_scene' ? (
             <>
               {renderExportBounds()}
-              {/* Base Layer: All scene node bodies in natural layer stack order */}
-              {scene.map((node) => renderSceneNode(node, 'body'))}
+              {/* Base Layer: Unselected scene node bodies in natural layer stack order */}
+              {scene
+                .filter((node) => !selectedNodeIds.includes(node.id) && node.id !== selectedNodeId)
+                .map((node) => renderSceneNode(node, 'body'))}
 
-              {/* Top Overlay Layer: Selection handles & guidance points of focused/selected node on top */}
+              {/* Focused/Selected scene node bodies rendered on top of unselected nodes */}
+              {scene
+                .filter((node) => selectedNodeIds.includes(node.id) || node.id === selectedNodeId)
+                .map((node) => renderSceneNode(node, 'body'))}
+
+              {/* Top Overlay Layer: Selection handles & guidance points of focused/selected node on very top */}
               {scene
                 .filter((node) => selectedNodeIds.includes(node.id) || node.id === selectedNodeId)
                 .map((node) => renderSceneNode(node, 'handles'))}
@@ -5156,7 +5315,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           {/* Guidance Point Snapping Indicator Preview */}
           {activeSnapPreview && (() => {
             const isShapeSnap = activeSnapPreview.type === 'shape';
-            const color = isShapeSnap ? '#ef4444' : '#10b981'; // Red for Shape Snap, Emerald Green for Grid Snap
+            const isLineSnap = activeSnapPreview.type === 'line_guidance';
+            const color = isShapeSnap ? '#ef4444' : isLineSnap ? '#eab308' : '#10b981'; // Red for Shape Snap (Hard link), Yellow for Line/Vector Soft Snap, Emerald Green for Grid Snap
             return (
               <Group x={toPixelX(activeSnapPreview.sciX)} y={toPixelY(activeSnapPreview.sciY)} key="snap_preview_indicator">
                 <Circle radius={4} fill={color} opacity={0.9} />
@@ -5194,16 +5354,12 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               const bgColor = node.labelFillColor || (canvasBgTheme === 'light' ? '#ffffff' : '#1e293b');
 
               const renderedHtml = renderLatexToHtml(node.label || '', macros);
-              const isSelected = selectedNodeId === node.id || selectedNodeIds.includes(node.id);
-              const align = node.textAlign || 'center';
-
+              const align = node.textAlign || 'center';              
               return (
                 <div
                   key={`math_label_${node.id}`}
-                  className={`math-label-container absolute pointer-events-auto select-none flex flex-col ${
+                  className={`math-label-container absolute pointer-events-none select-none flex flex-col ${
                     align === 'left' ? 'items-start text-left' : align === 'right' ? 'items-end text-right' : 'items-center text-center'
-                  } ${
-                    isSelected ? 'cursor-move ring-1 ring-purple-400/60' : 'cursor-pointer hover:ring-1 hover:ring-slate-400/40'
                   }`}
                   style={{
                     left: `${labelPx}px`,
@@ -5217,97 +5373,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                     opacity: 1.0,
                     padding: '2px 4px',
                     borderRadius: '4px',
-                  }}
-                  onPointerDown={(e) => {
-                    if (drawingMode !== 'select') return;
-                    if (e.button !== 0) return;
-                    e.stopPropagation();
-
-                    const startPointerX = e.clientX;
-                    const startPointerY = e.clientY;
-                    const initX = node.x;
-                    const initY = node.y;
-                    const initOffX = node.labelOffsetX ?? defaultOffX;
-                    const initOffY = node.labelOffsetY ?? defaultOffY;
-                    const targetEl = e.currentTarget as HTMLDivElement;
-                    let hasDragged = false;
-                    let lastDx = 0;
-                    let lastDy = 0;
-
-                    const handlePointerMove = (moveEvt: PointerEvent) => {
-                      const dx = moveEvt.clientX - startPointerX;
-                      const dy = moveEvt.clientY - startPointerY;
-                      if (!hasDragged && Math.hypot(dx, dy) > 3) {
-                        hasDragged = true;
-                      }
-                      if (hasDragged) {
-                        lastDx = dx;
-                        lastDy = dy;
-                        targetEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-                      }
-                    };
-
-                    const handlePointerUp = (upEvt: PointerEvent) => {
-                      window.removeEventListener('pointermove', handlePointerMove);
-                      window.removeEventListener('pointerup', handlePointerUp);
-
-                      if (hasDragged) {
-                        targetEl.style.transform = 'translate(-50%, -50%)';
-                        if (node.type === 'text') {
-                          const newX = Math.round((initX + lastDx / scale) * 100) / 100;
-                          const newY = Math.round((initY - lastDy / scale) * 100) / 100;
-                          onUpdateNode({
-                            ...node,
-                            x: newX,
-                            y: newY,
-                            labelOffsetX: 0,
-                            labelOffsetY: 0,
-                          });
-                        } else {
-                          const newOffX = Math.round((initOffX + lastDx / (scale * nodeScale)) * 100) / 100;
-                          const newOffY = Math.round((initOffY - lastDy / (scale * nodeScale)) * 100) / 100;
-                          onUpdateNode({
-                            ...node,
-                            labelOffsetX: newOffX,
-                            labelOffsetY: newOffY,
-                          });
-                        }
-                      } else {
-                        const now = Date.now();
-                        const isDoubleClick = lastLabelClickRef.current.id === node.id && (now - lastLabelClickRef.current.time) < 400;
-                        lastLabelClickRef.current = { id: node.id, time: now };
-
-                        if (isDoubleClick) {
-                          popoverOpenedAtRef.current = Date.now();
-                          setEditingLabelNodeId(node.id);
-                        } else {
-                          if (upEvt.ctrlKey || upEvt.metaKey) {
-                            if (selectedNodeIds.includes(node.id)) {
-                              const newIds = selectedNodeIds.filter((id) => id !== node.id);
-                              onSelectNodes(newIds);
-                              onSelectNode(newIds.length > 0 ? newIds[newIds.length - 1] : null);
-                            } else {
-                              const newIds = [...selectedNodeIds, node.id];
-                              onSelectNodes(newIds);
-                              onSelectNode(node.id);
-                            }
-                          } else {
-                            onSelectNode(node.id);
-                            onSelectNodes([node.id]);
-                          }
-                        }
-                      }
-                    };
-
-                    window.addEventListener('pointermove', handlePointerMove);
-                    window.addEventListener('pointerup', handlePointerUp);
-                  }}
-                  onDoubleClick={(e) => {
-                    if (drawingMode === 'select') {
-                      e.stopPropagation();
-                      popoverOpenedAtRef.current = Date.now();
-                      setEditingLabelNodeId(node.id);
-                    }
                   }}
                   dangerouslySetInnerHTML={{ __html: renderedHtml }}
                 />
@@ -5344,30 +5409,103 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               <span className="text-[10px] text-indigo-400 font-bold whitespace-nowrap">Edit Label (Shift+Enter for newline):</span>
               <span className="text-[9px] text-slate-400">Ctrl+Enter to save</span>
             </div>
-            <textarea
-              ref={popoverTextareaRef}
-              autoFocus
-              defaultValue={targetNode.label || ''}
-              placeholder="e.g. \zmass&#10;Line 2"
-              rows={2}
-              className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-emerald-400 font-mono focus:outline-none focus:border-indigo-400 w-56 resize-y"
-              onKeyDown={(e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                  const val = e.currentTarget.value;
-                  if (targetNode.type === 'text' && (!val || !val.trim())) {
-                    onDeleteNode?.(targetNode.id);
-                  } else {
-                    onUpdateNode({ ...targetNode, label: val });
+            <div className="relative">
+              <textarea
+                ref={popoverTextareaRef}
+                autoFocus
+                value={popoverLabelValue}
+                onChange={(e) => {
+                  const newVal = e.target.value;
+                  setPopoverLabelValue(newVal);
+                  setShowPopoverMacroSuggestions(true);
+                  onUpdateNode({ ...targetNode, label: newVal });
+                }}
+                onFocus={() => setShowPopoverMacroSuggestions(true)}
+                onBlur={() => {
+                  setTimeout(() => setShowPopoverMacroSuggestions(false), 200);
+                }}
+                placeholder="e.g. \zmass&#10;Line 2"
+                rows={2}
+                className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-400 w-64 resize-y"
+                onKeyDown={(e) => {
+                  if (showPopoverMacroSuggestions && popoverSuggestions.length > 0) {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setPopoverActiveSuggestionIdx((prev) => (prev + 1) % popoverSuggestions.length);
+                      return;
+                    }
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setPopoverActiveSuggestionIdx((prev) => (prev - 1 + popoverSuggestions.length) % popoverSuggestions.length);
+                      return;
+                    }
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                      if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        const selectedMacro = popoverSuggestions[popoverActiveSuggestionIdx] || popoverSuggestions[0];
+                        if (selectedMacro) {
+                          handleSelectPopoverMacro(selectedMacro);
+                        }
+                        return;
+                      }
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowPopoverMacroSuggestions(false);
+                      return;
+                    }
                   }
-                  setEditingLabelNodeId(null);
-                } else if (e.key === 'Escape') {
-                  if (targetNode.type === 'text' && (!targetNode.label || !targetNode.label.trim())) {
-                    onDeleteNode?.(targetNode.id);
+
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (targetNode.type === 'text' && (!popoverLabelValue || !popoverLabelValue.trim())) {
+                      onDeleteNode?.(targetNode.id);
+                    } else {
+                      onUpdateNode({ ...targetNode, label: popoverLabelValue });
+                    }
+                    setEditingLabelNodeId(null);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (targetNode.type === 'text' && (!targetNode.label || !targetNode.label.trim())) {
+                      onDeleteNode?.(targetNode.id);
+                    }
+                    setEditingLabelNodeId(null);
                   }
-                  setEditingLabelNodeId(null);
-                }
-              }}
-            />
+                }}
+              />
+
+              {showPopoverMacroSuggestions && popoverSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950 border border-slate-700 rounded-md shadow-xl max-h-36 overflow-y-auto z-30">
+                  {popoverSuggestions.map((m, idx) => (
+                    <button
+                      key={m.command}
+                      ref={(el) => {
+                        if (idx === popoverActiveSuggestionIdx && el) {
+                          el.scrollIntoView({ block: 'nearest' });
+                        }
+                      }}
+                      onMouseEnter={() => setPopoverActiveSuggestionIdx(idx)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelectPopoverMacro(m);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-xs flex justify-between items-center border-b border-slate-800/50 transition-colors ${
+                        idx === popoverActiveSuggestionIdx ? 'bg-indigo-600 text-white font-bold' : 'hover:bg-indigo-900/50 text-indigo-300'
+                      }`}
+                    >
+                      <span className="font-mono">{m.command}</span>
+                      <span
+                        className={`font-mono text-[10px] truncate max-w-[120px] ${
+                          idx === popoverActiveSuggestionIdx ? 'text-indigo-100' : 'text-slate-400'
+                        }`}
+                      >
+                        {m.template}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-1.5">
               <button
                 onClick={() => {
@@ -5382,11 +5520,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               </button>
               <button
                 onClick={() => {
-                  const val = popoverTextareaRef.current?.value ?? '';
-                  if (targetNode.type === 'text' && (!val || !val.trim())) {
+                  if (targetNode.type === 'text' && (!popoverLabelValue || !popoverLabelValue.trim())) {
                     onDeleteNode?.(targetNode.id);
                   } else {
-                    onUpdateNode({ ...targetNode, label: val });
+                    onUpdateNode({ ...targetNode, label: popoverLabelValue });
                   }
                   setEditingLabelNodeId(null);
                 }}

@@ -54,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   plotOptions,
   onUpdatePlotOptions,
   selectedNodeId,
-  selectedNodeIds = [],
+  selectedNodeIds: _selectedNodeIds = [],
   drawingMode,
   setDrawingMode,
   pendingShapeToAdd,
@@ -86,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const { suggestions } = useMacroParser(macros, selectedNode?.label || '');
   const [showMacroSuggestions, setShowMacroSuggestions] = useState(false);
+  const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(0);
 
   const activeDef = activeRobotDefId ? definitions[activeRobotDefId] : null;
   const activePrimitive = activeDef && selectedPrimitiveIdx !== null ? activeDef.primitives[selectedPrimitiveIdx] : null;
@@ -93,16 +94,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const labelInputRef = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
-    if (selectedNode && selectedNode.type === 'text' && (selectedNodeIds.length <= 1)) {
-      const timer = setTimeout(() => {
-        if (labelInputRef.current) {
-          labelInputRef.current.focus();
-          labelInputRef.current.select();
-        }
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedNodeId, selectedNode?.type, selectedNodeIds.length]);
+    setActiveSuggestionIdx(0);
+  }, [suggestions]);
 
   React.useEffect(() => {
     if (selectedNodeId) {
@@ -149,13 +142,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onUpdateNode({ ...selectedNode, label: val });
   };
 
-  const handleSelectMacroSuggestion = (cmd: string) => {
+  const handleSelectMacroSuggestion = (macro: { command: string; argsCount?: number }) => {
     if (!selectedNode) return;
     const current = selectedNode.label || '';
-    const lastBackslash = current.lastIndexOf('\\');
-    const newText = (lastBackslash >= 0 ? current.slice(0, lastBackslash) : '') + cmd + '{1}';
+    const textarea = labelInputRef.current;
+    const cursorPos = textarea ? textarea.selectionStart : current.length;
+    const textBeforeCursor = current.slice(0, cursorPos);
+    const textAfterCursor = current.slice(cursorPos);
+
+    const lastBackslash = textBeforeCursor.lastIndexOf('\\');
+    const prefix = lastBackslash >= 0 ? textBeforeCursor.slice(0, lastBackslash) : textBeforeCursor;
+
+    let inserted = macro.command;
+    let targetCursorOffset = inserted.length;
+
+    if ((macro.argsCount ?? 0) > 0) {
+      inserted = `${macro.command}{}`;
+      targetCursorOffset = macro.command.length + 1; // position cursor inside {}
+    }
+
+    const newText = prefix + inserted + textAfterCursor;
+    const targetCursorPos = prefix.length + targetCursorOffset;
+
     onUpdateNode({ ...selectedNode, label: newText });
     setShowMacroSuggestions(false);
+
+    setTimeout(() => {
+      if (labelInputRef.current) {
+        labelInputRef.current.focus();
+        labelInputRef.current.setSelectionRange(targetCursorPos, targetCursorPos);
+      }
+    }, 10);
   };
 
   const getNodeIcon = (type: SceneNode['type']) => {
@@ -1235,6 +1252,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         >
                           <ArrowDown className="w-3 h-3" />
                         </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteNode(node.id);
+                          }}
+                          className="p-1 hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded"
+                          title="Delete Node (Del)"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -1313,13 +1340,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </div>
 
-                {/* Crop to Content Toggle & Crop Padding Slider */}
+                {/* Fit Artboard to Content Toggle & Content Padding Slider */}
                 {plotOptions && onUpdatePlotOptions && (
                   <div className="space-y-2 border-t border-purple-800/50 pt-2.5">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col pr-2">
-                        <span className="text-xs font-bold text-purple-200">Crop to Content</span>
-                        <span className="text-[10px] text-purple-400 leading-tight">Auto-crop boundary around scene content</span>
+                        <span className="text-xs font-bold text-purple-200">Fit Artboard to Content</span>
+                        <span className="text-[10px] text-purple-400 leading-tight">
+                          {plotOptions.cropToContent
+                            ? 'Auto-wraps all entities (ignores purple box)'
+                            : 'Fixed Viewport Frame (clips overflow)'}
+                        </span>
                       </div>
                       <input
                         type="checkbox"
@@ -1332,7 +1363,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {(plotOptions.cropToContent ?? false) && (
                       <div className="space-y-1 bg-slate-950/60 p-2 rounded-lg border border-purple-800/50">
                         <div className="flex justify-between items-center text-xs">
-                          <label className="text-[10px] font-semibold text-purple-300">Crop Padding</label>
+                          <label className="text-[10px] font-semibold text-purple-300">Content Padding</label>
                           <span className="font-mono text-purple-300 font-bold">{(plotOptions.cropPadding ?? 0.2).toFixed(2)} units</span>
                         </div>
                         <input
@@ -1464,6 +1495,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         handleLabelChange(e.target.value);
                         setShowMacroSuggestions(true);
                       }}
+                      onKeyDown={(e) => {
+                        if (showMacroSuggestions && suggestions.length > 0) {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setActiveSuggestionIdx((prev) => (prev + 1) % suggestions.length);
+                            return;
+                          }
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setActiveSuggestionIdx((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+                            return;
+                          }
+                          if (e.key === 'Enter' || e.key === 'Tab') {
+                            if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                              e.preventDefault();
+                              const selectedMacro = suggestions[activeSuggestionIdx] || suggestions[0];
+                              if (selectedMacro) {
+                                handleSelectMacroSuggestion(selectedMacro);
+                              }
+                              return;
+                            }
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setShowMacroSuggestions(false);
+                            return;
+                          }
+                        }
+                      }}
                       onFocus={() => setShowMacroSuggestions(true)}
                       onBlur={() => {
                         setTimeout(() => setShowMacroSuggestions(false), 200);
@@ -1477,14 +1537,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     {showMacroSuggestions && suggestions.length > 0 && (
                       <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950 border border-slate-700 rounded-md shadow-xl max-h-36 overflow-y-auto z-20">
-                        {suggestions.map((m) => (
+                        {suggestions.map((m, idx) => (
                           <button
                             key={m.command}
-                            onClick={() => handleSelectMacroSuggestion(m.command)}
-                            className="w-full text-left px-3 py-1.5 text-xs hover:bg-indigo-900/50 flex justify-between items-center border-b border-slate-800/50"
+                            ref={(el) => {
+                              if (idx === activeSuggestionIdx && el) {
+                                el.scrollIntoView({ block: 'nearest' });
+                              }
+                            }}
+                            onMouseEnter={() => setActiveSuggestionIdx(idx)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleSelectMacroSuggestion(m);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 text-xs flex justify-between items-center border-b border-slate-800/50 transition-colors ${
+                              idx === activeSuggestionIdx ? 'bg-indigo-600 text-white font-bold' : 'hover:bg-indigo-900/50 text-indigo-300'
+                            }`}
                           >
-                            <span className="font-mono text-indigo-300 font-bold">{m.command}</span>
-                            <span className="font-mono text-[10px] text-slate-400 truncate max-w-[120px]">
+                            <span className="font-mono">{m.command}</span>
+                            <span
+                              className={`font-mono text-[10px] truncate max-w-[120px] ${
+                                idx === activeSuggestionIdx ? 'text-indigo-100' : 'text-slate-400'
+                              }`}
+                            >
                               {m.template}
                             </span>
                           </button>

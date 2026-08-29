@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from fastapi import FastAPI, HTTPException, Response, Query
 from fastapi.middleware.cors import CORSMiddleware

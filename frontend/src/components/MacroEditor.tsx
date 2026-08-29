@@ -88,6 +88,9 @@ export const MacroEditor: React.FC<MacroEditorProps> = ({ macros, onUpdateMacros
                 placeholder="\zcmd"
                 value={newCmd}
                 onChange={(e) => setNewCmd(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddMacro();
+                }}
                 className="col-span-4 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500"
               />
               <input
@@ -96,6 +99,9 @@ export const MacroEditor: React.FC<MacroEditorProps> = ({ macros, onUpdateMacros
                 max={9}
                 value={newArgs}
                 onChange={(e) => setNewArgs(parseInt(e.target.value, 10) || 0)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddMacro();
+                }}
                 className="col-span-2 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 text-center focus:outline-none focus:border-indigo-500"
                 title="Arguments Count"
               />
@@ -104,12 +110,15 @@ export const MacroEditor: React.FC<MacroEditorProps> = ({ macros, onUpdateMacros
                 placeholder="\hat{\boldsymbol{n}}_{#1}"
                 value={newTemplate}
                 onChange={(e) => setNewTemplate(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddMacro();
+                }}
                 className="col-span-5 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-emerald-300 focus:outline-none focus:border-indigo-500"
               />
               <button
                 onClick={handleAddMacro}
                 className="col-span-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded flex items-center justify-center transition"
-                title="Add Macro"
+                title="Add Macro (Enter)"
               >
                 <Plus className="w-4 h-4" />
               </button>

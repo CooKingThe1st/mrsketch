@@ -23,12 +23,12 @@
     "\\zobjectfullstate": {
       "command": "\\zobjectfullstate",
       "argsCount": 0,
-      "template": "\\mathcal{X}"
+      "template": "\\boldsymbol{q}_s"
     },
     "\\zobjectvelocity": {
       "command": "\\zobjectvelocity",
       "argsCount": 0,
-      "template": "\\mathcal{V}"
+      "template": "\\boldsymbol{v}_s"
     },
     "\\zvelox": {
       "command": "\\zvelox",
@@ -68,7 +68,7 @@
     "\\zobject": {
       "command": "\\zobject",
       "argsCount": 0,
-      "template": "\\mathcal{O}"
+      "template": "\\mathcal{S}"
     },
     "\\zpurex": {
       "command": "\\zpurex",
@@ -173,12 +173,12 @@
     "\\znormalmagidx": {
       "command": "\\znormalmagidx",
       "argsCount": 1,
-      "template": "f_{n,#1}"
+      "template": "f_{#1, n}"
     },
     "\\ztangentmagidx": {
       "command": "\\ztangentmagidx",
       "argsCount": 1,
-      "template": "f_{t,#1}"
+      "template": "f_{#1, t}"
     },
     "\\zdisturbance": {
       "command": "\\zdisturbance",
@@ -198,7 +198,7 @@
     "\\zobstacles": {
       "command": "\\zobstacles",
       "argsCount": 0,
-      "template": "\\mathcal{O}"
+      "template": "\\mathcal{S}_{obs}"
     },
     "\\ztaskspace": {
       "command": "\\ztaskspace",
@@ -308,12 +308,12 @@
     "\\zvpar": {
       "command": "\\zvpar",
       "argsCount": 1,
-      "template": "v_{\\parallel,#1}"
+      "template": "v_{#1, \\parallel}"
     },
     "\\zvperp": {
       "command": "\\zvperp",
       "argsCount": 1,
-      "template": "v_{\\perp,#1}"
+      "template": "v_{#1,\\perp}"
     },
     "\\zafcthreshold": {
       "command": "\\zafcthreshold",
@@ -363,7 +363,7 @@
     "\\zcumulativewrench": {
       "command": "\\zcumulativewrench",
       "argsCount": 0,
-      "template": "\\boldsymbol{W}_{push}"
+      "template": "\\boldsymbol{W}_{app}"
     },
     "\\zfrictionwrench": {
       "command": "\\zfrictionwrench",
@@ -524,6 +524,171 @@
       "command": "\\zse",
       "argsCount": 0,
       "template": "\\mathrm{SE}(2)"
+    },
+    "\\zobjectmassmatrix": {
+      "command": "\\zobjectmassmatrix",
+      "argsCount": 0,
+      "template": "\\boldsymbol{M}_{s}"
+    },
+    "\\zobjectx": {
+      "command": "\\zobjectx",
+      "argsCount": 0,
+      "template": "x_{s}"
+    },
+    "\\zobjecty": {
+      "command": "\\zobjecty",
+      "argsCount": 0,
+      "template": "y_{s}"
+    },
+    "\\zobjectoccupiedarea": {
+      "command": "\\zobjectoccupiedarea",
+      "argsCount": 0,
+      "template": "\\mathcal{A}_{s}"
+    },
+    "\\zobjtwist": {
+      "command": "\\zobjtwist",
+      "argsCount": 0,
+      "template": "\\boldsymbol{v}^{*}_{s}"
+    },
+    "\\zobjomega": {
+      "command": "\\zobjomega",
+      "argsCount": 0,
+      "template": "\\omega^{*}_{s}"
+    },
+    "\\bluepar": {
+      "command": "\\bluepar",
+      "argsCount": 1,
+      "template": "\\color{blue}{#1}\\color{black}"
+    },
+    "\\redpar": {
+      "command": "\\redpar",
+      "argsCount": 1,
+      "template": "\\color{red}{#1}\\color{black}"
+    },
+    "\\greenpar": {
+      "command": "\\greenpar",
+      "argsCount": 1,
+      "template": "\\color{green}{#1}\\color{black}"
+    },
+    "\\zrobotteam": {
+      "command": "\\zrobotteam",
+      "argsCount": 0,
+      "template": "\\mathcal{R}(\\zrobottotal, \\zforcebound, \\zrobotradius, \\zcontrol{i})"
+    },
+    "\\zbudget": {
+      "command": "\\zbudget",
+      "argsCount": 0,
+      "template": "\\sum |\\zrobotforce_i| \\ge \\zforcestatic"
+    },
+    "\\zarea": {
+      "command": "\\zarea",
+      "argsCount": 0,
+      "template": "\\bigcup \\zrobotoccupiedarea_i \\subset \\zfreespace"
+    },
+    "\\zrobotstate": {
+      "command": "\\zrobotstate",
+      "argsCount": 1,
+      "template": "\\boldsymbol{q}_{r\\ifblank{#1}{}{,#1}}"
+    },
+    "\\zrobotx": {
+      "command": "\\zrobotx",
+      "argsCount": 1,
+      "template": "x_{r\\ifblank{#1}{}{,#1}}"
+    },
+    "\\zroboty": {
+      "command": "\\zroboty",
+      "argsCount": 1,
+      "template": "y_{r\\ifblank{#1}{}{,#1}}"
+    },
+    "\\zrobotorientation": {
+      "command": "\\zrobotorientation",
+      "argsCount": 1,
+      "template": "\\theta_{r\\ifblank{#1}{}{,#1}}"
+    },
+    "\\zrobotvelocity": {
+      "command": "\\zrobotvelocity",
+      "argsCount": 1,
+      "template": "\\boldsymbol{v}_{r\\ifblank{#1}{}{,#1}}"
+    },
+    "\\zrotationmatrix": {
+      "command": "\\zrotationmatrix",
+      "argsCount": 0,
+      "template": "\\boldsymbol{\\mathcal{R}}"
+    },
+    "\\zobjectcontactradius": {
+      "command": "\\zobjectcontactradius",
+      "argsCount": 0,
+      "template": "r_{\\mathrm{eq}}"
+    },
+    "\\zlsmatrix": {
+      "command": "\\zlsmatrix",
+      "argsCount": 0,
+      "template": "\\boldsymbol{\\mathcal{Q}}"
+    },
+    "\\zcontrol": {
+      "command": "\\zcontrol",
+      "argsCount": 1,
+      "template": "\\mathbf{u}_{\\ifblank{#1}{}{#1}}"
+    },
+    "\\zcontactnormal": {
+      "command": "\\zcontactnormal",
+      "argsCount": 1,
+      "template": "\\hat{\\boldsymbol{n}}_{#1}"
+    },
+    "\\zcontacttangent": {
+      "command": "\\zcontacttangent",
+      "argsCount": 1,
+      "template": "\\hat{\\boldsymbol{\\tau}}_{#1}"
+    },
+    "\\zwheelvelo": {
+      "command": "\\zwheelvelo",
+      "argsCount": 1,
+      "template": "\\omega_{#1}^{\\mathrm{wheel}}"
+    },
+    "\\zforcethreshold": {
+      "command": "\\zforcethreshold",
+      "argsCount": 0,
+      "template": "F_{\\mathrm{threshold}}"
+    },
+    "\\zforcestatic": {
+      "command": "\\zforcestatic",
+      "argsCount": 0,
+      "template": "F_{\\mathrm{static}}"
+    },
+    "\\zfreespace": {
+      "command": "\\zfreespace",
+      "argsCount": 0,
+      "template": "\\mathcal{F}_{\\mathrm{free}}"
+    },
+    "\\zpathlength": {
+      "command": "\\zpathlength",
+      "argsCount": 0,
+      "template": "L_{\\mathcal{P}}"
+    },
+    "\\zpathx": {
+      "command": "\\zpathx",
+      "argsCount": 0,
+      "template": "x_{\\mathcal{P}}"
+    },
+    "\\zpathy": {
+      "command": "\\zpathy",
+      "argsCount": 0,
+      "template": "y_{\\mathcal{P}}"
+    },
+    "\\zpaththeta": {
+      "command": "\\zpaththeta",
+      "argsCount": 0,
+      "template": "\\theta_{\\mathcal{P}}"
+    },
+    "\\zpathtangent": {
+      "command": "\\zpathtangent",
+      "argsCount": 0,
+      "template": "d_{\\mathcal{P}}"
+    },
+    "\\zforceidx": {
+      "command": "\\zforceidx",
+      "argsCount": 1,
+      "template": "\\boldsymbol{f}_{r, #1}"
     }
   },
   "definitions": {
@@ -1101,22 +1266,62 @@
     "fontSize": 12,
     "backgroundColor": "#ffffff",
     "showPlotBorder": false,
-    "gridResolution": 0.25,
+    "gridResolution": 0.5,
     "labelBoxOpacity": 0,
     "scaleLabelsWithZoom": true,
     "bgOpacity": 1,
     "marginPadding": 0,
-    "cropToContent": true,
+    "cropToContent": false,
     "cropPadding": 0.05,
     "renderMathOnCanvas": true
   },
   "exportBounds": {
-    "xMin": -15.2,
-    "xMax": 22.4,
-    "yMin": -22.2,
-    "yMax": -9.8
+    "xMin": -13.8,
+    "xMax": 5.7,
+    "yMin": -29.5,
+    "yMax": -22.5
   },
   "scene": [
+    {
+      "id": "node_rect_1787881916652",
+      "name": "RECT 132",
+      "type": "rect",
+      "x": -2.6,
+      "y": -26.2,
+      "scale": 1,
+      "rotation": 0,
+      "width": 8.4,
+      "height": 3.4,
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "dashed",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_rect_1787871043631",
+      "name": "RECT 125",
+      "type": "rect",
+      "x": -2.75,
+      "y": -13.1,
+      "scale": 1,
+      "rotation": 0,
+      "width": 14.5,
+      "height": 7.9,
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "dashed",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
     {
       "id": "node_triangle_1787075656553_0",
       "name": "TRIANGLE 97_copy",
@@ -1154,8 +1359,8 @@
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "dashdot",
-        "color": "#000000",
-        "fillColor": "#ffffff"
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
       }
     },
     {
@@ -1215,7 +1420,7 @@
         "nodeId": "node_circle_1786655656770_0",
         "pointKey": "circle_p8"
       },
-      "label": "Desired \nq_s",
+      "label": "desired \nq_s",
       "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
@@ -1443,7 +1648,7 @@
       "rotation": 0,
       "width": 1.8,
       "height": 6.4,
-      "label": "Slider",
+      "label": "Object",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
       "fontSize": 30,
@@ -1562,43 +1767,6 @@
       "endBinding": {
         "nodeId": "node_circle_1786655656770_0",
         "pointKey": "circle_p12"
-      },
-      "fontSize": 30,
-      "style": {
-        "strokeWidth": 2.5,
-        "strokeStyle": "solid",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      }
-    },
-    {
-      "id": "node_mega_vector_1786655656770_28",
-      "name": "MEGA_VECTOR 32_copy",
-      "type": "mega_vector",
-      "x": 5.54,
-      "y": -15.11,
-      "scale": 1,
-      "rotation": 0,
-      "points": [
-        -2.04,
-        -0.04,
-        -0.7,
-        -0.04,
-        -0.7,
-        -2.89,
-        2.66,
-        -2.89
-      ],
-      "lineShape": "straight",
-      "megaBindings": {
-        "0": {
-          "nodeId": "node_rect_1786655656770_4",
-          "pointKey": "edge_r_int_1"
-        },
-        "3": {
-          "nodeId": "node_rect_1786995341404_0",
-          "pointKey": "edge_l_int_2"
-        }
       },
       "fontSize": 30,
       "style": {
@@ -1743,8 +1911,8 @@
       "id": "node_text_1786714756222",
       "name": "TEXT 83",
       "type": "text",
-      "x": 6.33,
-      "y": -14.15,
+      "x": 6.89,
+      "y": -14.12,
       "scale": 1,
       "rotation": 0,
       "label": "Desired F_i",
@@ -1754,8 +1922,8 @@
         "strokeStyle": "solid",
         "color": "#000000"
       },
-      "labelOffsetX": 0.85,
-      "labelOffsetY": 0.25,
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
       "textAlign": "center"
     },
     {
@@ -1775,8 +1943,8 @@
       "style": {
         "strokeWidth": 2,
         "strokeStyle": "solid",
-        "color": "#3b82f6",
-        "fillColor": "#dbeafe"
+        "color": "#000000",
+        "fillColor": "#ffffff"
       },
       "textAlign": "center"
     },
@@ -1839,15 +2007,15 @@
       "id": "node_rect_1786971330814",
       "name": "RECT 80",
       "type": "rect",
-      "x": -2.25,
-      "y": -14.65,
+      "x": -2.6,
+      "y": -14.6,
       "scale": 1,
       "rotation": 0,
       "width": 2.8,
       "height": 1.8,
       "label": "Force \nEstimation",
-      "labelOffsetX": -0.05,
-      "labelOffsetY": -0.02,
+      "labelOffsetX": 0.01,
+      "labelOffsetY": -0.01,
       "fontSize": 30,
       "style": {
         "strokeWidth": 2,
@@ -1868,8 +2036,8 @@
       "points": [
         0,
         0,
-        2.05,
-        0
+        1.7,
+        0.05
       ],
       "startBinding": {
         "nodeId": "node_rect_1786971071841_0",
@@ -1887,23 +2055,23 @@
         "fillColor": "#ffffff"
       },
       "label": "Desired\n\\dot{q_s}",
-      "labelOffsetX": 1.13,
-      "labelOffsetY": 0.88,
+      "labelOffsetX": 0.9,
+      "labelOffsetY": 1.05,
       "textAlign": "center"
     },
     {
       "id": "node_vector_1786971787302",
       "name": "VECTOR 82",
       "type": "vector",
-      "x": -0.85,
-      "y": -14.65,
+      "x": -1.2,
+      "y": -14.6,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        1.35,
-        0
+        1.7,
+        -0.05
       ],
       "startBinding": {
         "nodeId": "node_rect_1786971330814",
@@ -1923,24 +2091,6 @@
       },
       "labelOffsetX": -0.81,
       "labelOffsetY": 2.91
-    },
-    {
-      "id": "node_text_1786972630410_9",
-      "name": "TEXT 83_copy",
-      "type": "text",
-      "x": 6.07,
-      "y": -20.45,
-      "scale": 1,
-      "rotation": 0,
-      "label": "Desired F_j",
-      "fontSize": 30,
-      "style": {
-        "strokeWidth": 2,
-        "strokeStyle": "solid",
-        "color": "#000000"
-      },
-      "labelOffsetX": 0.42,
-      "labelOffsetY": 1.84
     },
     {
       "id": "node_super_vector_1786974699941",
@@ -3020,39 +3170,6 @@
       "labelOffsetY": -0.07
     },
     {
-      "id": "node_vector_1787019743030",
-      "name": "VECTOR 78",
-      "type": "vector",
-      "x": 17.4,
-      "y": -18,
-      "scale": 1,
-      "rotation": 0,
-      "points": [
-        0,
-        0,
-        1.3,
-        0.03
-      ],
-      "startBinding": {
-        "nodeId": "node_rect_1786995341404_0",
-        "pointKey": "edge_r_int_2"
-      },
-      "endBinding": {
-        "nodeId": "node_rect_1786655656770_15",
-        "pointKey": "edge_l_int_5"
-      },
-      "label": "F_j",
-      "fontSize": 30,
-      "style": {
-        "strokeWidth": 2.5,
-        "strokeStyle": "solid",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      },
-      "labelOffsetX": 0.67,
-      "labelOffsetY": 0.47
-    },
-    {
       "id": "node_mega_vector_1787059396353",
       "name": "MEGA_VECTOR 78",
       "type": "mega_vector",
@@ -3111,15 +3228,15 @@
       "id": "node_rect_1787062121579",
       "name": "RECT 80",
       "type": "rect",
-      "x": -5.2,
-      "y": -25.6,
+      "x": -4.9,
+      "y": -25.7,
       "scale": 1,
       "rotation": 0,
-      "width": 2.7,
-      "height": 1.4,
-      "label": "Robot i",
-      "labelOffsetX": 0,
-      "labelOffsetY": 0,
+      "width": 3.1,
+      "height": 1.1,
+      "label": "Robot i\nController",
+      "labelOffsetX": -0.02,
+      "labelOffsetY": 0.02,
       "fontSize": 23,
       "style": {
         "strokeWidth": 2,
@@ -3129,38 +3246,16 @@
       }
     },
     {
-      "id": "node_circle_1787062224414",
-      "name": "CIRCLE 82",
-      "type": "circle",
-      "x": -1.9,
-      "y": -25.6,
-      "scale": 1,
-      "rotation": 0,
-      "width": 3,
-      "height": 2,
-      "radius": 1,
-      "label": "Contact \nPoint i",
-      "labelOffsetX": -0.01,
-      "labelOffsetY": -0.03,
-      "fontSize": 23,
-      "style": {
-        "strokeWidth": 2,
-        "strokeStyle": "solid",
-        "color": "#f59e0b",
-        "fillColor": "#fef3c7"
-      }
-    },
-    {
       "id": "node_rect_1787062274429",
       "name": "RECT 82",
       "type": "rect",
-      "x": 1.4,
-      "y": -26.6,
+      "x": 2.98,
+      "y": -25.7,
       "scale": 1,
       "rotation": 0,
-      "width": 2,
-      "height": 1.4,
-      "label": "Slider",
+      "width": 1.7,
+      "height": 1.1,
+      "label": "Object",
       "labelOffsetX": 0,
       "labelOffsetY": 0,
       "fontSize": 23,
@@ -3175,148 +3270,44 @@
       "id": "node_vector_1787062379578",
       "name": "VECTOR 83",
       "type": "vector",
-      "x": -3.85,
-      "y": -25.6,
+      "x": 0.35,
+      "y": -25.7,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        0.95,
+        1.78,
         0
       ],
       "startBinding": {
-        "nodeId": "node_rect_1787062121579",
-        "pointKey": "edge_r_int_2"
-      },
-      "endBinding": {
-        "nodeId": "node_circle_1787062224414",
-        "pointKey": "circle_p8"
-      },
-      "label": "q_{r,i}",
-      "fontSize": 23,
-      "style": {
-        "strokeWidth": 2.5,
-        "strokeStyle": "solid",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      },
-      "labelOffsetX": 0.51,
-      "labelOffsetY": 0.37
-    },
-    {
-      "id": "node_vector_1787062455229",
-      "name": "VECTOR 84",
-      "type": "vector",
-      "x": -0.9,
-      "y": -25.6,
-      "scale": 1,
-      "rotation": 0,
-      "points": [
-        0,
-        0,
-        1.3,
-        -1
-      ],
-      "startBinding": {
-        "nodeId": "node_circle_1787062224414",
-        "pointKey": "circle_p0"
+        "nodeId": "node_rect_1787877476286",
+        "pointKey": "edge_right_2"
       },
       "endBinding": {
         "nodeId": "node_rect_1787062274429",
-        "pointKey": "edge_l_int_2"
+        "pointKey": "edge_left_2"
       },
-      "label": "\\vec{f_i}",
-      "fontSize": 23,
+      "label": "\\zforceidx{i}",
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
         "strokeStyle": "solid",
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "labelOffsetX": 0.76,
-      "labelOffsetY": -0.22
-    },
-    {
-      "id": "node_vector_1787062476685",
-      "name": "VECTOR 85",
-      "type": "vector",
-      "x": -0.8,
-      "y": -27,
-      "scale": 1,
-      "rotation": 0,
-      "points": [
-        0,
-        0.05,
-        1.2,
-        0.05
-      ],
-      "endBinding": {
-        "nodeId": "node_rect_1787062274429",
-        "pointKey": "edge_l_int_3"
-      },
-      "label": "\\vec{f_j}",
-      "fontSize": 23,
-      "style": {
-        "strokeWidth": 2.5,
-        "strokeStyle": "solid",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      },
-      "labelOffsetX": 0.38,
-      "labelOffsetY": 0.38
-    },
-    {
-      "id": "node_mega_vector_1787062524149",
-      "name": "MEGA_VECTOR 86",
-      "type": "mega_vector",
-      "x": 1.4,
-      "y": -27.3,
-      "scale": 1,
-      "rotation": 0,
-      "points": [
-        0,
-        0,
-        0,
-        -1,
-        -8,
-        -1,
-        -8.8,
-        -1,
-        -8.8,
-        1.4
-      ],
-      "lineShape": "straight",
-      "megaBindings": {
-        "0": {
-          "nodeId": "node_rect_1787062274429",
-          "pointKey": "edge_t_int_2"
-        },
-        "4": {
-          "nodeId": "node_circle_1787672900694",
-          "pointKey": "circ_270"
-        }
-      },
-      "label": "q_s",
-      "fontSize": 23,
-      "style": {
-        "strokeWidth": 2.5,
-        "strokeStyle": "dashed",
-        "color": "#000000",
-        "fillColor": "#ffffff"
-      },
-      "labelOffsetX": -0.45,
-      "labelOffsetY": -0.71
+      "labelOffsetX": 0.84,
+      "labelOffsetY": 0.31
     },
     {
       "id": "node_text_1787062586504",
       "name": "TEXT 88",
       "type": "text",
-      "x": -8.82,
-      "y": -25.21,
+      "x": -12.79,
+      "y": -25.11,
       "scale": 1,
       "rotation": 0,
-      "label": "desired q_s",
+      "label": "\\zobjectfullstate^d",
       "fontSize": 23,
       "style": {
         "strokeWidth": 2,
@@ -3817,7 +3808,7 @@
       "points": [
         0,
         0,
-        -0.23,
+        -0.22,
         -0.36
       ],
       "endBinding": {
@@ -3887,7 +3878,7 @@
       "name": "LINE 113",
       "type": "line",
       "x": 13.35,
-      "y": -25.45,
+      "y": -25.47,
       "scale": 1,
       "rotation": 0,
       "points": [
@@ -3954,16 +3945,16 @@
       "id": "node_circle_1787672900694",
       "name": "CIRCLE 115",
       "type": "circle",
-      "x": -7.45,
-      "y": -25.6,
+      "x": -11.84,
+      "y": -25.7,
       "scale": 1,
       "rotation": 0,
       "width": 3,
       "height": 2,
       "radius": 0.3,
       "label": "-",
-      "labelOffsetX": -0.02,
-      "labelOffsetY": 0.01,
+      "labelOffsetX": -0.03,
+      "labelOffsetY": 0.02,
       "fontSize": 23,
       "style": {
         "strokeWidth": 2,
@@ -3976,15 +3967,15 @@
       "id": "node_vector_1787673138948",
       "name": "VECTOR 115",
       "type": "vector",
-      "x": -8.35,
-      "y": -25.61,
+      "x": -13.4,
+      "y": -25.62,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
-        0,
-        0.6,
-        0
+        -0.08,
+        1.26,
+        -0.08
       ],
       "endBinding": {
         "nodeId": "node_circle_1787672900694",
@@ -4002,19 +3993,406 @@
       "id": "node_vector_1787673190293",
       "name": "VECTOR 116",
       "type": "vector",
-      "x": -7.15,
-      "y": -25.6,
+      "x": -11.54,
+      "y": -25.7,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        0.6,
+        0.49,
         0
       ],
       "startBinding": {
         "nodeId": "node_circle_1787672900694",
         "pointKey": "circ_0"
+      },
+      "endBinding": {
+        "nodeId": "node_rect_1787869939940",
+        "pointKey": "edge_left_2"
+      },
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_circle_1787862361133",
+      "name": "CIRCLE 118",
+      "type": "circle",
+      "x": 30.3,
+      "y": -15.2,
+      "scale": 1,
+      "rotation": 15,
+      "width": 3,
+      "height": 2,
+      "radius": 0.9,
+      "label": "Robot i",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_vector_1787862648099",
+      "name": "VECTOR 119",
+      "type": "vector",
+      "x": 29.64,
+      "y": -19.26,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0,
+        1.25
+      ],
+      "label": "O_x",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": -0.15,
+      "labelOffsetY": 1.53
+    },
+    {
+      "id": "node_vector_1787862673063",
+      "name": "VECTOR 120",
+      "type": "vector",
+      "x": 29.64,
+      "y": -19.26,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        1,
+        0
+      ],
+      "label": "O_y",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "labelOffsetX": 1.06,
+      "labelOffsetY": -0.4
+    },
+    {
+      "id": "node_circle_1787863639381_0",
+      "name": "CIRCLE 118_copy",
+      "type": "circle",
+      "x": 32.1,
+      "y": -18.8,
+      "scale": 1,
+      "rotation": 15,
+      "width": 3,
+      "height": 2,
+      "radius": 0.8,
+      "label": "Robot j",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_alias_1787863658996",
+      "name": "Root Footprint Shape",
+      "type": "alias",
+      "definitionId": "root_robot",
+      "x": 32.7,
+      "y": -17.2,
+      "scale": 1,
+      "rotation": -42,
+      "label": "Object",
+      "labelOffsetX": -0.67,
+      "labelOffsetY": 1.12,
+      "fontSize": 23,
+      "labelTextColor": "#000000",
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_circle_1787863713220_0",
+      "name": "CIRCLE 118_copy_copy",
+      "type": "circle",
+      "x": 34.7,
+      "y": -17.6,
+      "scale": 1,
+      "rotation": 15,
+      "width": 3,
+      "height": 2,
+      "radius": 0.9,
+      "label": "Robot k",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_alias_1787864011460",
+      "name": "Root Footprint Shape",
+      "type": "alias",
+      "definitionId": "root_robot",
+      "x": 37.1,
+      "y": -14.8,
+      "scale": 1,
+      "rotation": 0,
+      "label": "Desired \nObject Pose",
+      "labelOffsetX": 1.04,
+      "labelOffsetY": -1.16,
+      "fontSize": 18,
+      "labelTextColor": "#000000",
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "dashed",
+        "color": "#3b82f6",
+        "fillColor": "#dbeafe"
+      }
+    },
+    {
+      "id": "node_obstacle_1787864077400",
+      "name": "OBSTACLE 125",
+      "type": "obstacle",
+      "x": 37.9,
+      "y": -18.7,
+      "scale": 1,
+      "rotation": 0,
+      "width": 2.7,
+      "height": 1.8,
+      "label": "Obstacle",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "labelTextColor": "#ffffff",
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#564f43",
+        "fillColor": "#8c8c8c"
+      }
+    },
+    {
+      "id": "node_vector_1787868327459",
+      "name": "VECTOR 126",
+      "type": "vector",
+      "x": 3.83,
+      "y": -25.7,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        0.9,
+        0
+      ],
+      "startBinding": {
+        "nodeId": "node_rect_1787062274429",
+        "pointKey": "edge_right_2"
+      },
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "label": "\\zobjectfullstate",
+      "labelOffsetX": 0.58,
+      "labelOffsetY": 0.39
+    },
+    {
+      "id": "node_rect_1787869939940",
+      "name": "RECT 127",
+      "type": "rect",
+      "x": -9.8,
+      "y": -25.7,
+      "scale": 1,
+      "rotation": 0,
+      "width": 2.5,
+      "height": 1.1,
+      "label": "Collaborative \nController",
+      "labelOffsetX": -0.02,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#f59e0b",
+        "fillColor": "#fef3c7"
+      }
+    },
+    {
+      "id": "node_rect_1787871718689",
+      "name": "RECT 123",
+      "type": "rect",
+      "x": -2,
+      "y": -23.5,
+      "scale": 1,
+      "rotation": 0,
+      "width": 3.4,
+      "height": 0.9,
+      "label": "Object \nPose Sensor",
+      "labelOffsetX": 0.01,
+      "labelOffsetY": -0.01,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_super_vector_1787871884396",
+      "name": "SUPER_VECTOR 124",
+      "type": "super_vector",
+      "x": -3.7,
+      "y": -23.5,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        -8.14,
+        -1.9
+      ],
+      "controlPoint": [
+        -8.14,
+        0
+      ],
+      "lineShape": "straight",
+      "startBinding": {
+        "nodeId": "node_rect_1787871718689",
+        "pointKey": "edge_left_2"
+      },
+      "endBinding": {
+        "nodeId": "node_circle_1787672900694",
+        "pointKey": "circ_90"
+      },
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "label": "\\hat{\\zobjectfullstate}",
+      "labelOffsetX": -7.83,
+      "labelOffsetY": -0.33
+    },
+    {
+      "id": "node_super_vector_1787876080793",
+      "name": "SUPER_VECTOR 124",
+      "type": "super_line",
+      "x": 4.18,
+      "y": -25.71,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        -4.48,
+        2.21
+      ],
+      "controlPoint": [
+        0,
+        2.21
+      ],
+      "lineShape": "straight",
+      "endBinding": {
+        "nodeId": "node_rect_1787871718689",
+        "pointKey": "edge_right_2"
+      },
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_text_1787877339838",
+      "name": "TEXT 125",
+      "type": "text",
+      "x": -7.67,
+      "y": -25.03,
+      "scale": 1,
+      "rotation": 0,
+      "label": "\\zforceidx{i}^d\n\\zcontactpointidx{i}^d",
+      "fontSize": 30,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000"
+      }
+    },
+    {
+      "id": "node_rect_1787877476286",
+      "name": "RECT 125",
+      "type": "rect",
+      "x": -0.65,
+      "y": -25.7,
+      "scale": 1,
+      "rotation": 0,
+      "width": 2,
+      "height": 1.1,
+      "label": "Contact \npoint i",
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "node_vector_1787878704043",
+      "name": "VECTOR 126",
+      "type": "vector",
+      "x": -8.55,
+      "y": -25.7,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        2.1,
+        0
+      ],
+      "startBinding": {
+        "nodeId": "node_rect_1787869939940",
+        "pointKey": "edge_right_2"
       },
       "endBinding": {
         "nodeId": "node_rect_1787062121579",
@@ -4029,50 +4407,154 @@
       }
     },
     {
-      "id": "node_mega_vector_1787673295162",
-      "name": "MEGA_VECTOR 117",
-      "type": "mega_vector",
-      "x": -1.9,
-      "y": -26.6,
+      "id": "node_vector_1787878755773",
+      "name": "VECTOR 127",
+      "type": "vector",
+      "x": -3.35,
+      "y": -25.7,
       "scale": 1,
       "rotation": 0,
       "points": [
         0,
         0,
-        0,
-        0,
-        0,
-        -1,
-        -3.4,
-        -1,
-        -3.4,
-        0.3
+        1.7,
+        0
       ],
-      "lineShape": "straight",
-      "megaBindings": {
-        "0": {
-          "nodeId": "node_circle_1787062224414",
-          "pointKey": "circ_270"
-        },
-        "1": {
-          "nodeId": "node_circle_1787062224414",
-          "pointKey": "circ_270"
-        },
-        "4": {
-          "nodeId": "node_rect_1787062121579",
-          "pointKey": "edge_bottom_2"
-        }
+      "startBinding": {
+        "nodeId": "node_rect_1787062121579",
+        "pointKey": "edge_right_2"
       },
-      "label": "f_i",
-      "fontSize": 23,
+      "endBinding": {
+        "nodeId": "node_rect_1787877476286",
+        "pointKey": "edge_left_2"
+      },
+      "label": "\\zrobotvelocity{i}",
+      "fontSize": 30,
       "style": {
         "strokeWidth": 2.5,
-        "strokeStyle": "dashed",
+        "strokeStyle": "solid",
         "color": "#000000",
         "fillColor": "#ffffff"
       },
-      "labelOffsetX": -0.39,
-      "labelOffsetY": -0.64
+      "labelOffsetX": 0.76,
+      "labelOffsetY": 0.36
+    },
+    {
+      "id": "node_super_vector_1787879348020",
+      "name": "SUPER_VECTOR 128",
+      "type": "super_vector",
+      "x": 1.2,
+      "y": -25.7,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        -2.1,
+        -1.5
+      ],
+      "controlPoint": [
+        0,
+        -1.5
+      ],
+      "lineShape": "straight",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "endBinding": {
+        "nodeId": "node_rect_1787879378443",
+        "pointKey": "edge_right_2"
+      }
+    },
+    {
+      "id": "node_rect_1787879378443",
+      "name": "RECT 129",
+      "type": "rect",
+      "x": -2,
+      "y": -27.2,
+      "scale": 1,
+      "rotation": 0,
+      "width": 2.2,
+      "height": 0.8,
+      "labelOffsetX": 0,
+      "labelOffsetY": 0,
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "label": "Force\nSensor"
+    },
+    {
+      "id": "node_super_vector_1787879518050",
+      "name": "SUPER_VECTOR 130",
+      "type": "super_vector",
+      "x": -3.1,
+      "y": -27.2,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        -1.8,
+        0.95
+      ],
+      "controlPoint": [
+        -1.8,
+        0
+      ],
+      "lineShape": "straight",
+      "startBinding": {
+        "nodeId": "node_rect_1787879378443",
+        "pointKey": "edge_left_2"
+      },
+      "endBinding": {
+        "nodeId": "node_rect_1787062121579",
+        "pointKey": "edge_bottom_2"
+      },
+      "fontSize": 30,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      },
+      "label": "\\hat{\\zforceidx{i}}",
+      "labelOffsetX": -1.39,
+      "labelOffsetY": 0.37
+    },
+    {
+      "id": "node_super_vector_1787880831955",
+      "name": "SUPER_VECTOR 131",
+      "type": "super_vector",
+      "x": -8.11,
+      "y": -25.69,
+      "scale": 1,
+      "rotation": 0,
+      "points": [
+        0,
+        0,
+        1.7,
+        -3.3
+      ],
+      "controlPoint": [
+        0,
+        -3.3
+      ],
+      "lineShape": "straight",
+      "fontSize": 23,
+      "style": {
+        "strokeWidth": 2.5,
+        "strokeStyle": "solid",
+        "color": "#000000",
+        "fillColor": "#ffffff"
+      }
     }
   ]
 }

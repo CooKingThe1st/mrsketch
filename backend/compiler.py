@@ -1,7 +1,9 @@
+from __future__ import annotations
 import io
 import math
 import base64
 import gc
+from typing import Tuple, List, Dict, Optional, Any, Union
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -12,25 +14,106 @@ from models import ProjectLayout, SceneNode, RobotDefinition, PrimitiveDefinitio
 
 import re
 
+def expand_ifblank_python(input_str: str) -> str:
+    text = input_str
+    safety = 0
+    while safety < 20:
+        safety += 1
+        idx = text.find('\\ifblank')
+        if idx == -1:
+            break
+
+        p = idx + 8
+        while p < len(text) and text[p].isspace():
+            p += 1
+
+        def read_brace_group(start_pos: int):
+            cur = start_pos
+            while cur < len(text) and text[cur].isspace():
+                cur += 1
+            if cur >= len(text) or text[cur] != '{':
+                return None
+            cur += 1
+            depth = 1
+            content = ""
+            while cur < len(text) and depth > 0:
+                c = text[cur]
+                if c == '\\':
+                    content += c
+                    cur += 1
+                    if cur < len(text):
+                        content += text[cur]
+                        cur += 1
+                    continue
+                if c == '{':
+                    depth += 1
+                elif c == '}':
+                    depth -= 1
+                    if depth == 0:
+                        cur += 1
+                        return content, cur
+                content += c
+                cur += 1
+            return None
+
+        g1 = read_brace_group(p)
+        if not g1:
+            text = text[:idx] + text[idx + 8:]
+            continue
+        g2 = read_brace_group(g1[1])
+        if not g2:
+            text = text[:idx] + text[idx + 8:]
+            continue
+        g3 = read_brace_group(g2[1])
+        if not g3:
+            text = text[:idx] + text[idx + 8:]
+            continue
+
+        arg = g1[0].strip()
+        then_val = g2[0]
+        else_val = g3[0]
+        replacement = then_val if (arg == "" or arg in ["#1", "#2", "#3"]) else else_val
+        text = text[:idx] + replacement + text[g3[1]:]
+
+    return text
+
 def expand_macros_for_mathtext(raw_label: str, macros_dict: dict) -> str:
+    if not raw_label:
+        return ""
+    if not macros_dict:
+        return expand_ifblank_python(raw_label)
+
+    macro_list = sorted(macros_dict.values(), key=lambda m: len(getattr(m, 'command', '')), reverse=True)
     result = raw_label
-    if macros_dict:
-        for cmd, macro in macros_dict.items():
+    prev_result = ""
+    iterations = 0
+
+    while result != prev_result and iterations < 5:
+        prev_result = result
+        iterations += 1
+
+        for macro in macro_list:
             cmd_name = macro.command if macro.command.startswith('\\') else f"\\{macro.command}"
-            if cmd_name in result:
-                args_count = getattr(macro, 'argsCount', 0)
-                template = getattr(macro, 'template', '')
-                if args_count == 0:
-                    result = result.replace(cmd_name, template)
-                else:
-                    pattern = re.escape(cmd_name) + r"(?:\{([^{}]*)\})" * args_count
-                    def replancer(m):
-                        res = template
-                        for i in range(1, args_count + 1):
+            args_count = getattr(macro, 'argsCount', 0)
+            template = getattr(macro, 'template', '')
+            escaped_cmd = re.escape(cmd_name)
+
+            if args_count == 0:
+                pattern = escaped_cmd + r"(?![a-zA-Z0-9])"
+                result = re.sub(pattern, lambda _: template, result)
+            else:
+                pattern = escaped_cmd + (r"(?:\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\})?" * args_count) + r"(?![a-zA-Z0-9])"
+                def make_replacer(tmpl, ac):
+                    def replacer(m):
+                        res = tmpl
+                        for i in range(1, ac + 1):
                             val = m.group(i) if m.group(i) is not None else ""
                             res = res.replace(f"#{i}", val)
                         return res
-                    result = re.sub(pattern, replancer, result)
+                    return replacer
+                result = re.sub(pattern, make_replacer(template, args_count), result)
+
+        result = expand_ifblank_python(result)
 
     result = result.replace(r'\bm{', r'\mathbf{').replace(r'\boldsymbol{', r'\mathbf{')
     return result
@@ -82,7 +165,10 @@ def get_figure_and_axes(fig_width: float, fig_height: float, dpi: int = 80):
         except Exception:
             pass
 
-    _cached_fig, _cached_ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi)
+    fig = plt.figure(figsize=(fig_width, fig_height), dpi=dpi)
+    ax = fig.add_axes([0, 0, 1, 1])
+    _cached_fig = fig
+    _cached_ax = ax
     _cached_size = target_size
     return _cached_fig, _cached_ax
 
@@ -402,6 +488,8 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
         ax.set_xlim(bounds.xMin, bounds.xMax)
         ax.set_ylim(bounds.yMin, bounds.yMax)
         ax.set_aspect('equal')
+        # Invisible corner anchors so tight bounding box preserves exact x and y padding
+        ax.plot([bounds.xMin, bounds.xMax], [bounds.yMin, bounds.yMax], color='none', alpha=0.0, zorder=-100)
 
         # Matlab style map
         style_map = {

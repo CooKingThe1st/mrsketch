@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PlotOptions } from '../types/schema';
-import { Sliders, Grid, Type, Palette, Eye, Square, Crop } from 'lucide-react';
+import { Sliders, Grid, Type, Palette, Eye, Square } from 'lucide-react';
 
 interface PlotSettingsProps {
   plotOptions: PlotOptions;
@@ -92,39 +92,6 @@ export const PlotSettings: React.FC<PlotSettingsProps> = ({ plotOptions, onUpdat
           />
         </div>
 
-        {/* Crop to Content Toggle & Crop Padding Slider */}
-        <div className="border-t border-slate-700/60 pt-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-purple-300">
-              <Crop className="w-4 h-4 text-purple-400" />
-              <span>Crop to Content</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={plotOptions.cropToContent ?? false}
-              onChange={(e) => onUpdatePlotOptions({ ...plotOptions, cropToContent: e.target.checked })}
-              className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-purple-600 focus:ring-purple-500 cursor-pointer"
-            />
-          </div>
-
-          {(plotOptions.cropToContent ?? false) && (
-            <div className="space-y-1 bg-slate-950/60 p-2.5 rounded-lg border border-purple-800/50">
-              <div className="flex justify-between items-center text-xs">
-                <label className="text-[11px] font-semibold text-purple-300">Crop Padding (scientific units)</label>
-                <span className="font-mono text-purple-300 font-bold">{(plotOptions.cropPadding ?? 0.2).toFixed(2)} units</span>
-              </div>
-              <input
-                type="range"
-                min="0.05"
-                max="2.0"
-                step="0.05"
-                value={Math.max(0.05, plotOptions.cropPadding ?? 0.2)}
-                onChange={(e) => onUpdatePlotOptions({ ...plotOptions, cropPadding: parseFloat(e.target.value) || 0.05 })}
-                className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-purple-500"
-              />
-            </div>
-          )}
-        </div>
 
         <div className="flex items-center justify-between border-t border-slate-700/60 pt-2">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
