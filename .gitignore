@@ -46,3 +46,4 @@ Thumbs.db
 # App outputs / temporary files
 mrsketch/exports/
 mrsketch/temp/
+backend/layout_backup_latest.json

@@ -13,6 +13,7 @@ import { isDrawioContent, convertDrawioToProjectLayout } from './utils/drawioImp
 import { getApiBaseUrl } from './utils/api';
 
 const LOCAL_STORAGE_KEY = 'mrsketch_project_layout_v1';
+const isLocalDev = typeof window !== 'undefined' && (window.location.port === '5173' || window.location.port === '3000');
 
 let backupSaveDebounceTimer: any = null;
 const saveLayoutSafely = (layoutToSave: ProjectLayout) => {
@@ -21,14 +22,17 @@ const saveLayoutSafely = (layoutToSave: ProjectLayout) => {
     const jsonStr = JSON.stringify(layoutToSave);
     localStorage.setItem(LOCAL_STORAGE_KEY, jsonStr);
     localStorage.setItem('mrsketch_project_layout_backup_v1', jsonStr);
-    if (backupSaveDebounceTimer) clearTimeout(backupSaveDebounceTimer);
-    backupSaveDebounceTimer = setTimeout(() => {
-      fetch(`${getApiBaseUrl()}/api/backup-save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: jsonStr,
-      }).catch(() => {});
-    }, 400);
+    // In local dev only, also persist backup to disk file
+    if (isLocalDev) {
+      if (backupSaveDebounceTimer) clearTimeout(backupSaveDebounceTimer);
+      backupSaveDebounceTimer = setTimeout(() => {
+        fetch(`${getApiBaseUrl()}/api/backup-save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: jsonStr,
+        }).catch(() => {});
+      }, 400);
+    }
   } catch (e) {
     console.warn('Safe layout save failed:', e);
   }
@@ -307,8 +311,9 @@ export function App() {
   const historyIndexRef = useRef<number>(0);
   const [saveNotification, setSaveNotification] = useState<boolean>(false);
 
-  // On mount, auto-load backend disk backup if present and local scene is initial default
+  // On mount, auto-load backend disk backup ONLY in local dev if present
   useEffect(() => {
+    if (!isLocalDev) return;
     fetch(`${getApiBaseUrl()}/api/backup-load`)
       .then((res) => res.json())
       .then((data) => {
