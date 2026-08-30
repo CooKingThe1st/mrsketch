@@ -8,7 +8,8 @@ import { LivePreview } from './components/LivePreview';
 import { PlotSettings } from './components/PlotSettings';
 import { StandalonePreview } from './components/StandalonePreview';
 import { ChangelogModal } from './components/ChangelogModal';
-import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid } from 'lucide-react';
+import { TutorialModal } from './components/TutorialModal';
+import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid, BookOpen } from 'lucide-react';
 import { isDrawioContent, convertDrawioToProjectLayout } from './utils/drawioImporter';
 import { getApiBaseUrl } from './utils/api';
 
@@ -279,6 +280,17 @@ export const syncBoundNodes = (scene: SceneNode[], movedNode: SceneNode): SceneN
 export function App() {
   const [hashRoute, setHashRoute] = useState<string>(window.location.hash);
   const [isChangelogOpen, setIsChangelogOpen] = useState<boolean>(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(false);
+
+  // Detect first-time visitor and prompt the tutorial guide popup
+  useEffect(() => {
+    try {
+      const tutorialSeen = localStorage.getItem('mrsketch_tutorial_seen');
+      if (!tutorialSeen) {
+        setIsTutorialOpen(true);
+      }
+    } catch (e) {}
+  }, []);
 
   useEffect(() => {
     const handleHashChange = () => setHashRoute(window.location.hash);
@@ -398,7 +410,7 @@ export function App() {
     large: 30,
   });
   const [autoSaveSeconds, setAutoSaveSeconds] = useState<number>(60);
-  const [activeMenu, setActiveMenu] = useState<'file' | 'edit' | 'view' | 'settings' | null>(null);
+  const [activeMenu, setActiveMenu] = useState<'file' | 'edit' | 'view' | 'settings' | 'help' | null>(null);
   const [showLeftSidebar, setShowLeftSidebar] = useState<boolean>(true);
   const [showRightPanel, setShowRightPanel] = useState<boolean>(true);
 
@@ -1309,12 +1321,16 @@ export function App() {
   };
 
   const handleResetLayout = () => {
-    if (window.confirm('Reset scene layout to default mock parameters?')) {
+    if (window.confirm('Reset scene layout to default clean parameters?')) {
       try {
         localStorage.removeItem(LOCAL_STORAGE_KEY);
+        localStorage.removeItem('mrsketch_project_layout_backup_v1');
       } catch (e) {}
       updateLayoutWithHistory(INITIAL_LAYOUT);
       setSelectedNodeId(null);
+      setSelectedNodeIds([]);
+      setSelectedPrimitiveIdx(null);
+      setSelectedPrimitiveIdxs([]);
     }
   };
 
@@ -1711,11 +1727,50 @@ export function App() {
             {/* Help Menu */}
             <div className="relative">
               <button
-                onClick={() => setIsChangelogOpen(true)}
-                className="px-2.5 py-1 rounded font-medium transition text-slate-300 hover:bg-slate-800 flex items-center gap-1"
+                onClick={() => setActiveMenu(activeMenu === 'help' ? null : 'help')}
+                className={`px-2.5 py-1 rounded font-medium transition flex items-center gap-1 ${
+                  activeMenu === 'help' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'
+                }`}
               >
                 <span>Help</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
+
+              {activeMenu === 'help' && (
+                <div className="absolute left-0 top-full mt-1 w-56 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 py-1.5 text-xs text-slate-200">
+                  <button
+                    onClick={() => {
+                      setIsTutorialOpen(true);
+                      setActiveMenu(null);
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-800 flex items-center justify-between transition"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-100 flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                        Tutorial & Instructions
+                      </span>
+                      <span className="text-[10px] text-slate-400">Controls, shortcuts & LaTeX tips</span>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsChangelogOpen(true);
+                      setActiveMenu(null);
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-800 flex items-center justify-between transition border-t border-slate-800"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-100 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                        Version & Updates
+                      </span>
+                      <span className="text-[10px] text-slate-400">Release changelog (v1.6)</span>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1906,6 +1961,9 @@ export function App() {
 
       {/* Changelog Modal */}
       <ChangelogModal isOpen={isChangelogOpen} onClose={() => setIsChangelogOpen(false)} />
+
+      {/* Tutorial / Onboarding Modal */}
+      <TutorialModal isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
     </div>
   );
 }

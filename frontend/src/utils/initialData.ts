@@ -1,5 +1,4 @@
 import type { ProjectLayout, RobotDefinition, PlotOptions } from '../types/schema';
-import { parseTexMacros } from '../hooks/useMacroParser';
 
 export const DEFAULT_TEX_MACROS = `
 \\newcommand{\\zrobotstate}[1]{\\boldsymbol{q}_{r\\ifblank{#1}{}{,#1}}}
@@ -268,7 +267,7 @@ export const PRESET_ROBOTS: Record<string, RobotDefinition> = {
 };
 
 export const INITIAL_LAYOUT: ProjectLayout = {
-  macros: parseTexMacros(DEFAULT_TEX_MACROS),
+  macros: {},
   definitions: PRESET_ROBOTS,
   plotOptions: DEFAULT_PLOT_OPTIONS,
   exportBounds: {
@@ -287,7 +286,7 @@ export const INITIAL_LAYOUT: ProjectLayout = {
       y: 2,
       scale: 1.0,
       rotation: 30,
-      label: '\\zcontactnormal{1}',
+      label: '',
       style: {
         strokeWidth: 2,
         strokeStyle: 'solid',
@@ -304,7 +303,7 @@ export const INITIAL_LAYOUT: ProjectLayout = {
       y: -2,
       scale: 1.2,
       rotation: -45,
-      label: '\\zrobotvelocity{2}',
+      label: '',
       style: {
         strokeWidth: 2,
         strokeStyle: 'solid',
@@ -322,7 +321,7 @@ export const INITIAL_LAYOUT: ProjectLayout = {
       rotation: 0,
       width: 4,
       height: 2,
-      label: '\\znetwrenchspace',
+      label: '',
       style: {
         strokeWidth: 2,
         strokeStyle: 'dashed',
@@ -339,7 +338,7 @@ export const INITIAL_LAYOUT: ProjectLayout = {
       scale: 1.0,
       rotation: 0,
       points: [0, 0, 4, 3],
-      label: '\\zrobotforce_{1}',
+      label: '',
       style: {
         strokeWidth: 3,
         strokeStyle: 'solid',
