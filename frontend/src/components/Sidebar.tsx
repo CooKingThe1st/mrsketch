@@ -39,9 +39,11 @@ interface SidebarProps {
   onUpdatePrimitive: (idx: number, prim: PrimitiveDefinition) => void;
   onUpdatePrimitives?: (updates: Array<{ idx: number; prim: PrimitiveDefinition }>) => void;
   onUpdateDefinitions: (defs: Record<string, RobotDefinition>) => void;
+  width?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
+  width,
   mode,
   onModeChange,
   scene,
@@ -193,7 +195,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const availableDefsForImport = Object.values(definitions).filter((d) => d.id !== activeRobotDefId);
 
   return (
-    <div className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col h-full text-slate-200 shrink-0">
+    <div
+      style={{ width: width ? `${width}px` : undefined }}
+      className={`${width ? '' : 'w-80'} bg-slate-900 border-r border-slate-800 flex flex-col h-full text-slate-200 shrink-0 select-none overflow-hidden`}
+    >
       {/* Sidebar Header Tab Switcher: Scene Tree vs Component Tools */}
       <div className="flex border-b border-slate-800 bg-slate-950/60">
         <button

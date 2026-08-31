@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Stage, Layer, Group, Rect, Circle, Line, Arrow, Text, Tag, Label } from 'react-konva';
 import type { SceneNode, RobotDefinition, ExportBounds, PrimitiveDefinition, PointBinding, PlotOptions, DrawingMode, PendingShapeToAdd, MacroDefinition } from '../types/schema';
-import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight, Trash2 } from 'lucide-react';
+import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight, Trash2, Maximize2 } from 'lucide-react';
 import { syncBoundNodesForGroup } from '../App';
 import { renderLatexToHtml } from '../utils/latexRenderer';
 import { useMacroParser } from '../hooks/useMacroParser';
@@ -149,6 +149,39 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       });
     }
   };
+
+  const fitArtboardToViewport = useCallback(() => {
+    if (dimensions.width <= 0 || dimensions.height <= 0) return;
+    if (mode === 'main_scene') {
+      const boundsW = Math.max(1, exportBounds.xMax - exportBounds.xMin);
+      const boundsH = Math.max(1, exportBounds.yMax - exportBounds.yMin);
+      // Fit bounds comfortably filling ~72% of visible canvas container
+      const targetScaleW = (dimensions.width * 0.72) / boundsW;
+      const targetScaleH = (dimensions.height * 0.72) / boundsH;
+      const newScale = Math.min(120, Math.max(12, Math.round(Math.min(targetScaleW, targetScaleH))));
+
+      // Center the exportBounds in the viewport
+      const centerX = (exportBounds.xMin + exportBounds.xMax) / 2;
+      const centerY = (exportBounds.yMin + exportBounds.yMax) / 2;
+
+      const newPanX = -centerX * newScale;
+      const newPanY = centerY * newScale;
+
+      setScale(newScale);
+      setPanOffset({ x: newPanX, y: newPanY });
+    } else {
+      setScale(40);
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [dimensions.width, dimensions.height, exportBounds, mode]);
+
+  const hasAutoFittedRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (!hasAutoFittedRef.current && dimensions.width > 200 && dimensions.height > 200) {
+      hasAutoFittedRef.current = true;
+      fitArtboardToViewport();
+    }
+  }, [dimensions.width, dimensions.height, fitArtboardToViewport]);
 
   const [showKonvaGrid, setShowKonvaGrid] = useState<boolean>(true);
 
@@ -4095,11 +4128,21 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         </button>
 
         <button
+          onClick={fitArtboardToViewport}
+          className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded text-[11px] font-bold transition shadow"
+          title="Fit Artboard into Viewport (Auto Zoom & Center)"
+        >
+          <Maximize2 className="w-3 h-3" />
+          <span>Fit View</span>
+        </button>
+
+        <button
           onClick={() => {
             setPanOffset({ x: 0, y: 0 });
             setScale(40);
           }}
           className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-[11px]"
+          title="Reset Camera to (0,0) at baseline 40 px/unit"
         >
           Recenter
         </button>

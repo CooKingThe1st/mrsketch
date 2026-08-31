@@ -414,6 +414,80 @@ export function App() {
   const [showLeftSidebar, setShowLeftSidebar] = useState<boolean>(true);
   const [showRightPanel, setShowRightPanel] = useState<boolean>(true);
 
+  // Dynamic responsive sidebar widths with drag resizing and localStorage persistence
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return 280;
+    try {
+      const saved = localStorage.getItem('mrsketch_left_sidebar_w');
+      if (saved) return Math.max(220, Math.min(480, parseInt(saved, 10)));
+    } catch (e) {}
+    const w = window.innerWidth;
+    return w < 1440 ? 250 : w >= 1920 ? 320 : 280;
+  });
+
+  const [rightPanelWidth, setRightPanelWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return 400;
+    try {
+      const saved = localStorage.getItem('mrsketch_right_panel_w');
+      if (saved) return Math.max(260, Math.min(720, parseInt(saved, 10)));
+    } catch (e) {}
+    const w = window.innerWidth;
+    return w < 1440 ? 340 : w >= 1920 ? 460 : 400;
+  });
+
+  const [isDraggingLeftResizer, setIsDraggingLeftResizer] = useState<boolean>(false);
+  const [isDraggingRightResizer, setIsDraggingRightResizer] = useState<boolean>(false);
+
+  // Drag-resizing listeners for Left Sidebar
+  useEffect(() => {
+    if (!isDraggingLeftResizer) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault();
+      const newWidth = Math.max(220, Math.min(480, e.clientX));
+      setLeftSidebarWidth(newWidth);
+      try {
+        localStorage.setItem('mrsketch_left_sidebar_w', newWidth.toString());
+      } catch (err) {}
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingLeftResizer(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingLeftResizer]);
+
+  // Drag-resizing listeners for Right Panel
+  useEffect(() => {
+    if (!isDraggingRightResizer) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault();
+      const newWidth = Math.max(260, Math.min(720, window.innerWidth - e.clientX));
+      setRightPanelWidth(newWidth);
+      try {
+        localStorage.setItem('mrsketch_right_panel_w', newWidth.toString());
+      } catch (err) {}
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingRightResizer(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingRightResizer]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navbarRef = useRef<HTMLDivElement>(null);
 
@@ -1857,46 +1931,60 @@ export function App() {
       </header>
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex min-h-0 relative overflow-hidden">
+      <div className={`flex-1 flex min-h-0 relative overflow-hidden ${isDraggingLeftResizer || isDraggingRightResizer ? 'select-none cursor-col-resize' : ''}`}>
         {/* Left Sidebar */}
         {showLeftSidebar && (
-          <Sidebar
-            mode={activeWorkspaceTab}
-            onModeChange={handleModeChange}
-            scene={layout.scene}
-            definitions={layout.definitions}
-            activeRobotDefId={activeRobotDefId}
-            selectedPrimitiveIdx={selectedPrimitiveIdx}
-            selectedPrimitiveIdxs={selectedPrimitiveIdxs}
-            macros={layout.macros}
-            exportBounds={layout.exportBounds}
-            plotOptions={layout.plotOptions}
-            onUpdatePlotOptions={handleUpdatePlotOptions}
-            selectedNodeId={selectedNodeId}
-            selectedNodeIds={selectedNodeIds}
-            drawingMode={drawingMode}
-            setDrawingMode={setDrawingMode}
-            pendingShapeToAdd={pendingShapeToAdd}
-            setPendingShapeToAdd={setPendingShapeToAdd}
-            setActiveRobotDefId={setActiveRobotDefId}
-            onAddNode={handleAddNode}
-            onUpdateNode={handleUpdateNode}
-            onDeleteNode={handleDeleteNode}
-            onMoveLayer={handleMoveLayer}
-            onMovePrimitiveLayer={handleMovePrimitiveLayer}
-            onUpdateExportBounds={handleUpdateExportBounds}
-            onSelectNode={handleSelectNode}
-            onSelectPrimitive={setSelectedPrimitiveIdx}
-            onSelectPrimitives={setSelectedPrimitiveIdxs}
-            onAddPrimitive={handleAddPrimitive}
-            onImportComponentPrimitives={handleImportComponentPrimitives}
-            onDeletePrimitive={handleDeletePrimitive}
-            onDeletePrimitives={handleDeletePrimitives}
-            onDuplicatePrimitive={handleDuplicatePrimitive}
-            onUpdatePrimitive={handleUpdatePrimitive}
-            onUpdatePrimitives={handleUpdatePrimitives}
-            onUpdateDefinitions={handleUpdateDefinitions}
-          />
+          <>
+            <Sidebar
+              width={leftSidebarWidth}
+              mode={activeWorkspaceTab}
+              onModeChange={handleModeChange}
+              scene={layout.scene}
+              definitions={layout.definitions}
+              activeRobotDefId={activeRobotDefId}
+              selectedPrimitiveIdx={selectedPrimitiveIdx}
+              selectedPrimitiveIdxs={selectedPrimitiveIdxs}
+              macros={layout.macros}
+              exportBounds={layout.exportBounds}
+              plotOptions={layout.plotOptions}
+              onUpdatePlotOptions={handleUpdatePlotOptions}
+              selectedNodeId={selectedNodeId}
+              selectedNodeIds={selectedNodeIds}
+              drawingMode={drawingMode}
+              setDrawingMode={setDrawingMode}
+              pendingShapeToAdd={pendingShapeToAdd}
+              setPendingShapeToAdd={setPendingShapeToAdd}
+              setActiveRobotDefId={setActiveRobotDefId}
+              onAddNode={handleAddNode}
+              onUpdateNode={handleUpdateNode}
+              onDeleteNode={handleDeleteNode}
+              onMoveLayer={handleMoveLayer}
+              onMovePrimitiveLayer={handleMovePrimitiveLayer}
+              onUpdateExportBounds={handleUpdateExportBounds}
+              onSelectNode={handleSelectNode}
+              onSelectPrimitive={setSelectedPrimitiveIdx}
+              onSelectPrimitives={setSelectedPrimitiveIdxs}
+              onAddPrimitive={handleAddPrimitive}
+              onImportComponentPrimitives={handleImportComponentPrimitives}
+              onDeletePrimitive={handleDeletePrimitive}
+              onDeletePrimitives={handleDeletePrimitives}
+              onDuplicatePrimitive={handleDuplicatePrimitive}
+              onUpdatePrimitive={handleUpdatePrimitive}
+              onUpdatePrimitives={handleUpdatePrimitives}
+              onUpdateDefinitions={handleUpdateDefinitions}
+            />
+            {/* Draggable Splitter for Left Sidebar */}
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDraggingLeftResizer(true);
+              }}
+              className={`w-1.5 hover:w-2 hover:bg-indigo-500 transition-all cursor-col-resize select-none shrink-0 z-20 ${
+                isDraggingLeftResizer ? 'bg-indigo-600 w-2' : 'bg-slate-800'
+              }`}
+              title="Drag to resize Tools & Scene Tree sidebar"
+            />
+          </>
         )}
 
         {/* Center Canvas Stage */}
@@ -1944,18 +2032,34 @@ export function App() {
 
         {/* Right Side Panel */}
         {showRightPanel && (
-          <div className="w-[450px] h-full shrink-0">
-            {activeRightPanel === 'preview' && <LivePreview layout={layout} />}
-            {activeRightPanel === 'plot' && (
-              <PlotSettings
-                plotOptions={layout.plotOptions}
-                onUpdatePlotOptions={handleUpdatePlotOptions}
-              />
-            )}
-            {activeRightPanel === 'macros' && (
-              <MacroEditor macros={layout.macros} onUpdateMacros={handleUpdateMacros} />
-            )}
-          </div>
+          <>
+            {/* Draggable Splitter for Right Panel */}
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDraggingRightResizer(true);
+              }}
+              className={`w-1.5 hover:w-2 hover:bg-indigo-500 transition-all cursor-col-resize select-none shrink-0 z-20 ${
+                isDraggingRightResizer ? 'bg-indigo-600 w-2' : 'bg-slate-800'
+              }`}
+              title="Drag to resize Matplotlib Output & Settings panel"
+            />
+            <div
+              style={{ width: `${rightPanelWidth}px` }}
+              className="h-full shrink-0 overflow-hidden"
+            >
+              {activeRightPanel === 'preview' && <LivePreview layout={layout} />}
+              {activeRightPanel === 'plot' && (
+                <PlotSettings
+                  plotOptions={layout.plotOptions}
+                  onUpdatePlotOptions={handleUpdatePlotOptions}
+                />
+              )}
+              {activeRightPanel === 'macros' && (
+                <MacroEditor macros={layout.macros} onUpdateMacros={handleUpdateMacros} />
+              )}
+            </div>
+          </>
         )}
       </div>
 
