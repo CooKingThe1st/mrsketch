@@ -1353,7 +1353,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span className="text-xs font-bold text-purple-200">Fit Artboard to Content</span>
                         <span className="text-[10px] text-purple-400 leading-tight">
                           {plotOptions.cropToContent
-                            ? 'Auto-wraps all entities (ignores purple box)'
+                            ? 'Tight AABB wrap on active content'
                             : 'Fixed Viewport Frame (clips overflow)'}
                         </span>
                       </div>

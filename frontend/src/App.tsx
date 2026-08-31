@@ -1715,7 +1715,7 @@ export function App() {
                         <span className="text-xs font-bold text-slate-200">Fit Artboard to Content</span>
                         <span className="text-[10px] text-slate-400 leading-tight">
                           {layout.plotOptions.cropToContent
-                            ? 'Auto-wraps all entities (ignores purple box)'
+                            ? 'Tight AABB wrap on active content'
                             : 'Fixed Viewport Frame (clips overflow)'}
                         </span>
                       </div>

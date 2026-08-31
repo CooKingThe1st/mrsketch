@@ -15,17 +15,20 @@ export function computeNodeAABB(
 
   // Standalone text nodes have no background shape at (nx, ny); their content is solely at the label offset
   if (type === 'text') {
+    if (!node.label || !node.label.trim()) {
+      return [nx, ny, nx, ny];
+    }
     const lox = (node.labelOffsetX ?? 0.0) * scale;
     const loy = (node.labelOffsetY ?? 0.0) * scale;
     const lx = nx + lox;
     const ly = ny + loy;
     const fsize = node.fontSize || 12;
-    const fsizeUnits = (fsize / 40.0) * scale;
+    const fsizeUnits = (fsize / 72.0) * scale;
     const lines = (node.label || '').split('\n');
     const lineCount = Math.max(1, lines.length);
     const maxChars = Math.max(...lines.map((l) => l.length), 1);
-    const halfW = Math.max(0.2, maxChars * (fsizeUnits * 0.28));
-    const halfH = Math.max(0.15, lineCount * (fsizeUnits * 0.45));
+    const halfW = Math.max(0.1, maxChars * (fsizeUnits * 0.45));
+    const halfH = Math.max(0.08, lineCount * (fsizeUnits * 0.625));
     return [lx - halfW, ly - halfH, lx + halfW, ly + halfH];
   }
 
@@ -145,12 +148,12 @@ export function computeNodeAABB(
     const lox = (node.labelOffsetX ?? defaultOff) * scale;
     const loy = (node.labelOffsetY ?? defaultOff) * scale;
     const fsize = node.fontSize || 12;
-    const fsizeUnits = (fsize / 40.0) * scale;
+    const fsizeUnits = (fsize / 72.0) * scale;
     const lines = node.label.split('\n');
     const lineCount = Math.max(1, lines.length);
     const maxChars = Math.max(...lines.map((l) => l.length), 1);
-    const halfW = Math.max(0.2, maxChars * (fsizeUnits * 0.28));
-    const halfH = Math.max(0.15, lineCount * (fsizeUnits * 0.45));
+    const halfW = Math.max(0.1, maxChars * (fsizeUnits * 0.45));
+    const halfH = Math.max(0.08, lineCount * (fsizeUnits * 0.625));
     xs.push(nx + lox - halfW, nx + lox + halfW);
     ys.push(ny + loy - halfH, ny + loy + halfH);
   }
@@ -176,7 +179,7 @@ export function isAABBIntersecting(
   return !(maxX < eMinX || minX > eMaxX || maxY < eMinY || minY > eMaxY);
 }
 
-export function computeContentBounds(layout: ProjectLayout, padding: number = 0.2): ExportBounds {
+export function computeContentBounds(layout: ProjectLayout, padding: number = 0.05): ExportBounds {
   const { scene, definitions, exportBounds } = layout;
   if (!scene || scene.length === 0) return exportBounds;
 
@@ -186,6 +189,7 @@ export function computeContentBounds(layout: ProjectLayout, padding: number = 0.
   let maxY = -Infinity;
 
   scene.forEach((node) => {
+    if (node.type === 'text' && (!node.label || !node.label.trim())) return;
     const [nxMin, nyMin, nxMax, nyMax] = computeNodeAABB(node, definitions || {});
     minX = Math.min(minX, nxMin);
     maxX = Math.max(maxX, nxMax);
@@ -195,7 +199,7 @@ export function computeContentBounds(layout: ProjectLayout, padding: number = 0.
 
   if (minX === Infinity || maxX === -Infinity) return exportBounds;
 
-  const pad = Math.max(0.05, padding);
+  const pad = Math.max(0.0, padding);
   let finalXMin = Math.round((minX - pad) * 100) / 100;
   let finalXMax = Math.round((maxX + pad) * 100) / 100;
   let finalYMin = Math.round((minY - pad) * 100) / 100;
@@ -212,13 +216,14 @@ export function computeContentBounds(layout: ProjectLayout, padding: number = 0.
   };
 }
 
-export function computeCropToBounds(layout: ProjectLayout, padding: number = 0.2): ExportBounds {
+export function computeCropToBounds(layout: ProjectLayout, padding: number = 0.05): ExportBounds {
   const { scene, definitions, exportBounds } = layout;
   if (!scene || scene.length === 0) return exportBounds;
 
-  // Filter nodes that fall within or are bound to exportBounds
+  // Filter nodes that fall within or are bound to exportBounds (ignoring empty text nodes)
   const visibleIds = new Set<string>();
   scene.forEach((node) => {
+    if (node.type === 'text' && (!node.label || !node.label.trim())) return;
     const aabb = computeNodeAABB(node, definitions || {});
     if (isAABBIntersecting(aabb, exportBounds, 0.0)) {
       visibleIds.add(node.id);
@@ -234,6 +239,7 @@ export function computeCropToBounds(layout: ProjectLayout, padding: number = 0.2
   let maxY = -Infinity;
 
   visibleNodes.forEach((node) => {
+    if (node.type === 'text' && (!node.label || !node.label.trim())) return;
     const [nxMin, nyMin, nxMax, nyMax] = computeNodeAABB(node, definitions || {});
     minX = Math.min(minX, nxMin);
     maxX = Math.max(maxX, nxMax);
@@ -243,7 +249,7 @@ export function computeCropToBounds(layout: ProjectLayout, padding: number = 0.2
 
   if (minX === Infinity || maxX === -Infinity) return exportBounds;
 
-  const pad = Math.max(0.05, padding);
+  const pad = Math.max(0.0, padding);
   let finalXMin = Math.round((minX - pad) * 100) / 100;
   let finalXMax = Math.round((maxX + pad) * 100) / 100;
   let finalYMin = Math.round((minY - pad) * 100) / 100;
@@ -267,8 +273,9 @@ export function filterLayoutForExport(layout: ProjectLayout): ProjectLayout {
 
   const visibleIds = new Set<string>();
 
-  // Pass 1: Direct AABB intersection with export bounds
+  // Pass 1: Direct AABB intersection with export bounds (excluding empty text nodes)
   scene.forEach((node) => {
+    if (node.type === 'text' && (!node.label || !node.label.trim())) return;
     const aabb = computeNodeAABB(node, definitions || {});
     if (isAABBIntersecting(aabb, bounds, 0.0)) {
       visibleIds.add(node.id);
@@ -281,6 +288,7 @@ export function filterLayoutForExport(layout: ProjectLayout): ProjectLayout {
     addedNew = false;
     scene.forEach((node) => {
       if (visibleIds.has(node.id)) return;
+      if (node.type === 'text' && (!node.label || !node.label.trim())) return;
 
       const boundNodeIds: string[] = [];
       if (node.startBinding?.nodeId) boundNodeIds.push(node.startBinding.nodeId);
@@ -304,13 +312,14 @@ export function filterLayoutForExport(layout: ProjectLayout): ProjectLayout {
 
   let finalBounds = bounds;
   if (layout.plotOptions?.cropToContent && visibleScene.length > 0) {
-    const pad = Math.max(0.05, layout.plotOptions.cropPadding ?? 0.2);
+    const pad = Math.max(0.0, layout.plotOptions.cropPadding ?? 0.05);
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
 
     visibleScene.forEach((node) => {
+      if (node.type === 'text' && (!node.label || !node.label.trim())) return;
       const [nxMin, nyMin, nxMax, nyMax] = computeNodeAABB(node, definitions || {});
       minX = Math.min(minX, nxMin);
       maxX = Math.max(maxX, nxMax);

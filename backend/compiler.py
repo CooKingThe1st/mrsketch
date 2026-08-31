@@ -236,17 +236,19 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
 
     # Standalone text nodes have no background shape at (nx, ny); their content is solely at the label offset
     if node.type == 'text':
+        if not getattr(node, 'label', None) or not node.label.strip():
+            return (nx, ny, nx, ny)
         lox = (getattr(node, 'labelOffsetX', 0.0) if getattr(node, 'labelOffsetX', None) is not None else 0.0) * scale
         loy = (getattr(node, 'labelOffsetY', 0.0) if getattr(node, 'labelOffsetY', None) is not None else 0.0) * scale
         lx = nx + lox
         ly = ny + loy
         fsize = getattr(node, 'fontSize', 12.0) or 12.0
-        fsize_units = (fsize / 40.0) * scale
+        fsize_units = (fsize / 72.0) * scale
         lines = (getattr(node, 'label', '') or '').split('\n')
         line_count = max(1, len(lines))
         max_chars = max([len(l) for l in lines] + [1])
-        half_w = max(0.2, max_chars * (fsize_units * 0.28))
-        half_h = max(0.15, line_count * (fsize_units * 0.45))
+        half_w = max(0.1, max_chars * (fsize_units * 0.45))
+        half_h = max(0.08, line_count * (fsize_units * 0.625))
         return (lx - half_w, ly - half_h, lx + half_w, ly + half_h)
 
     xs = []
@@ -392,12 +394,12 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
         lox = (getattr(node, 'labelOffsetX', default_off) if getattr(node, 'labelOffsetX', None) is not None else default_off) * scale
         loy = (getattr(node, 'labelOffsetY', default_off) if getattr(node, 'labelOffsetY', None) is not None else default_off) * scale
         fsize = getattr(node, 'fontSize', 12.0) or 12.0
-        fsize_units = (fsize / 40.0) * scale
+        fsize_units = (fsize / 72.0) * scale
         lines = node.label.split('\n')
         line_count = max(1, len(lines))
         max_chars = max([len(l) for l in lines] + [1])
-        half_w = max(0.2, max_chars * (fsize_units * 0.28))
-        half_h = max(0.15, line_count * (fsize_units * 0.45))
+        half_w = max(0.1, max_chars * (fsize_units * 0.45))
+        half_h = max(0.08, line_count * (fsize_units * 0.625))
         xs.extend([nx + lox - half_w, nx + lox + half_w])
         ys.extend([ny + loy - half_h, ny + loy + half_h])
 
@@ -407,6 +409,9 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
     return (min(xs), min(ys), max(xs), max(ys))
 
 def is_node_in_export_bounds(node: SceneNode, bounds: ExportBounds, definitions: dict, margin: float = 0.0) -> bool:
+    # Exclude empty standalone text labels
+    if node.type == 'text' and (not getattr(node, 'label', None) or not node.label.strip()):
+        return False
     min_x, min_y, max_x, max_y = compute_node_aabb(node, definitions)
     e_min_x = bounds.xMin - margin
     e_max_x = bounds.xMax + margin
@@ -421,7 +426,7 @@ def compute_scene_content_bounds(layout: ProjectLayout, padding: float = 0.2) ->
     if not scene:
         return bounds
 
-    # Filter to only visible nodes inside export bounds
+    # Filter to only visible nodes inside export bounds (excluding empty text labels)
     visible_nodes = [node for node in scene if is_node_in_export_bounds(node, bounds, defs, margin=0.0)]
     if not visible_nodes:
         return bounds
@@ -432,6 +437,8 @@ def compute_scene_content_bounds(layout: ProjectLayout, padding: float = 0.2) ->
     y_max = float('-inf')
 
     for node in visible_nodes:
+        if node.type == 'text' and (not getattr(node, 'label', None) or not node.label.strip()):
+            continue
         nx_min, ny_min, nx_max, ny_max = compute_node_aabb(node, defs)
         x_min = min(x_min, nx_min)
         x_max = max(x_max, nx_max)
@@ -441,7 +448,7 @@ def compute_scene_content_bounds(layout: ProjectLayout, padding: float = 0.2) ->
     if x_min == float('inf') or x_max == float('-inf'):
         return bounds
 
-    pad = max(0.05, padding)
+    pad = max(0.0, padding)
     final_x_min = round(x_min - pad, 2)
     final_x_max = round(x_max + pad, 2)
     final_y_min = round(y_min - pad, 2)
@@ -460,9 +467,9 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
     configure_matplotlib_latex(layout.macros, font_size=int(global_font_size), fast_mode=fast_mode)
 
     if getattr(plot_opts, 'cropToContent', False):
-        pad_val = getattr(plot_opts, 'cropPadding', 0.2)
+        pad_val = getattr(plot_opts, 'cropPadding', 0.05)
         if pad_val is None:
-            pad_val = 0.2
+            pad_val = 0.05
         bounds = compute_scene_content_bounds(layout, padding=pad_val)
     else:
         bounds = layout.exportBounds
@@ -471,8 +478,12 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
     height = max(0.5, bounds.yMax - bounds.yMin)
     
     unit_scale = 1.0
-    fig_width = max(1.5, min(40.0, width * unit_scale))
-    fig_height = max(1.5, min(40.0, height * unit_scale))
+    aspect = width / height
+    fig_width = max(1.0, min(40.0, width * unit_scale))
+    fig_height = max(0.2, min(40.0, fig_width / aspect))
+    if fig_height < 0.5:
+        fig_height = 0.5
+        fig_width = fig_height * aspect
     
     fig, ax = get_figure_and_axes(fig_width, fig_height, dpi=dpi)
     
