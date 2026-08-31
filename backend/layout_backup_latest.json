@@ -1271,15 +1271,15 @@
     "scaleLabelsWithZoom": true,
     "bgOpacity": 1,
     "marginPadding": 0,
-    "cropToContent": true,
+    "cropToContent": false,
     "cropPadding": 0.05,
     "renderMathOnCanvas": true
   },
   "exportBounds": {
     "xMin": -13.8,
     "xMax": 5.7,
-    "yMin": -29.5,
-    "yMax": -22.5
+    "yMin": -29.1,
+    "yMax": -22.1
   },
   "scene": [
     {
