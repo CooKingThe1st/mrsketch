@@ -226,6 +226,20 @@ def configure_matplotlib_latex(macros_dict: dict, font_size: int = 12, fast_mode
         })
         _last_config_key = ("failed_tex", font_size)
 
+def clean_latex_for_length(s: str) -> str:
+    if not s:
+        return ""
+    text = re.sub(r'\\(hat|tilde|vec|bar|dot|ddot|boldsymbol|mathbf|mathcal|mathbb|mathrm|bm|text|frac|sqrt|underline)\b', '', s)
+    text = re.sub(r'\\[a-zA-Z]+', 'M', text)
+    text = re.sub(r'[_^{}\$\\\s]', '', text)
+    return text
+
+def approx_text_length(text: str) -> int:
+    if not text:
+        return 1
+    lines = text.split('\n')
+    return max([len(clean_latex_for_length(l)) for l in lines] + [1])
+
 def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float, float, float]:
     nx, ny = node.x, node.y
     scale = getattr(node, 'scale', 1.0) or 1.0
@@ -246,7 +260,7 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
         fsize_units = (fsize / 72.0) * scale
         lines = (getattr(node, 'label', '') or '').split('\n')
         line_count = max(1, len(lines))
-        max_chars = max([len(l) for l in lines] + [1])
+        max_chars = approx_text_length(getattr(node, 'label', ''))
         half_w = max(0.1, max_chars * (fsize_units * 0.45))
         half_h = max(0.08, line_count * (fsize_units * 0.625))
         return (lx - half_w, ly - half_h, lx + half_w, ly + half_h)
@@ -397,7 +411,7 @@ def compute_node_aabb(node: SceneNode, definitions: dict) -> Tuple[float, float,
         fsize_units = (fsize / 72.0) * scale
         lines = node.label.split('\n')
         line_count = max(1, len(lines))
-        max_chars = max([len(l) for l in lines] + [1])
+        max_chars = approx_text_length(node.label)
         half_w = max(0.1, max_chars * (fsize_units * 0.45))
         half_h = max(0.08, line_count * (fsize_units * 0.625))
         xs.extend([nx + lox - half_w, nx + lox + half_w])

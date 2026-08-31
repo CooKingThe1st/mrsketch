@@ -1,5 +1,19 @@
 import type { ProjectLayout, SceneNode, RobotDefinition, ExportBounds } from '../types/schema';
 
+export function cleanLatexForLength(s: string): string {
+  if (!s) return '';
+  let text = s.replace(/\\(hat|tilde|vec|bar|dot|ddot|boldsymbol|mathbf|mathcal|mathbb|mathrm|bm|text|frac|sqrt|underline)\b/g, '');
+  text = text.replace(/\\[a-zA-Z]+/g, 'M');
+  text = text.replace(/[_^{}$\\\s]/g, '');
+  return text;
+}
+
+export function approxTextLength(text: string): number {
+  if (!text) return 1;
+  const lines = text.split('\n');
+  return Math.max(...lines.map((l) => cleanLatexForLength(l).length), 1);
+}
+
 export function computeNodeAABB(
   node: SceneNode,
   definitions: Record<string, RobotDefinition>
@@ -26,7 +40,7 @@ export function computeNodeAABB(
     const fsizeUnits = (fsize / 72.0) * scale;
     const lines = (node.label || '').split('\n');
     const lineCount = Math.max(1, lines.length);
-    const maxChars = Math.max(...lines.map((l) => l.length), 1);
+    const maxChars = approxTextLength(node.label || '');
     const halfW = Math.max(0.1, maxChars * (fsizeUnits * 0.45));
     const halfH = Math.max(0.08, lineCount * (fsizeUnits * 0.625));
     return [lx - halfW, ly - halfH, lx + halfW, ly + halfH];
@@ -151,7 +165,7 @@ export function computeNodeAABB(
     const fsizeUnits = (fsize / 72.0) * scale;
     const lines = node.label.split('\n');
     const lineCount = Math.max(1, lines.length);
-    const maxChars = Math.max(...lines.map((l) => l.length), 1);
+    const maxChars = approxTextLength(node.label);
     const halfW = Math.max(0.1, maxChars * (fsizeUnits * 0.45));
     const halfH = Math.max(0.08, lineCount * (fsizeUnits * 0.625));
     xs.push(nx + lox - halfW, nx + lox + halfW);
