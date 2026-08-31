@@ -56,6 +56,21 @@ interface CanvasStageProps {
   onMovePrimitiveLayer?: (idx: number, direction: 'up' | 'down') => void;
 }
 
+export const toCubicBezierPoints = (
+  p1x: number,
+  p1y: number,
+  hcx: number,
+  hcy: number,
+  p2x: number,
+  p2y: number
+): number[] => {
+  const cp1x = p1x + (2 / 3) * (hcx - p1x);
+  const cp1y = p1y + (2 / 3) * (hcy - p1y);
+  const cp2x = p2x + (2 / 3) * (hcx - p2x);
+  const cp2y = p2y + (2 / 3) * (hcy - p2y);
+  return [p1x, p1y, cp1x, cp1y, cp2x, cp2y, p2x, p2y];
+};
+
 export const CanvasStage: React.FC<CanvasStageProps> = ({
   mode,
   scene,
@@ -2710,6 +2725,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       const p1y = -pts[1] * scale * nodeScale;
       const p2x = pts[2] * scale * nodeScale;
       const p2y = -pts[3] * scale * nodeScale;
+      const arrSize = node.arrowSize || 1.0;
 
       nodeContent = (
         <Arrow
@@ -2719,8 +2735,9 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           strokeWidth={node.style.strokeWidth}
           opacity={strokeOpacity}
           dash={strokeDash}
-          pointerLength={8 * zoomRatio}
-          pointerWidth={8 * zoomRatio}
+          pointerLength={8 * zoomRatio * arrSize}
+          pointerWidth={8 * zoomRatio * arrSize}
+          pointerAtBeginning={Boolean(node.doubleArrow)}
         />
       );
     } else if (node.type === 'line') {
@@ -2752,6 +2769,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       const hcy = -cpy * scale * nodeScale;
 
       const isStraight = node.lineShape === 'straight';
+      const arrSize = node.arrowSize || 1.0;
 
       if (node.type === 'super_line') {
         if (isStraight) {
@@ -2765,9 +2783,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             />
           );
         } else {
+          const cubicPts = toCubicBezierPoints(p1x, p1y, hcx, hcy, p2x, p2y);
           nodeContent = (
             <Line
-              points={[p1x, p1y, hcx, hcy, p2x, p2y]}
+              points={cubicPts}
               bezier
               stroke={node.style.color}
               strokeWidth={node.style.strokeWidth}
@@ -2780,13 +2799,26 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         if (isStraight) {
           nodeContent = (
             <Group>
-              <Line
-                points={[p1x, p1y, hcx, hcy]}
-                stroke={node.style.color}
-                strokeWidth={node.style.strokeWidth}
-                opacity={strokeOpacity}
-                dash={strokeDash}
-              />
+              {node.doubleArrow ? (
+                <Arrow
+                  points={[hcx, hcy, p1x, p1y]}
+                  stroke={node.style.color}
+                  fill={node.style.color}
+                  strokeWidth={node.style.strokeWidth}
+                  opacity={strokeOpacity}
+                  dash={strokeDash}
+                  pointerLength={8 * zoomRatio * arrSize}
+                  pointerWidth={8 * zoomRatio * arrSize}
+                />
+              ) : (
+                <Line
+                  points={[p1x, p1y, hcx, hcy]}
+                  stroke={node.style.color}
+                  strokeWidth={node.style.strokeWidth}
+                  opacity={strokeOpacity}
+                  dash={strokeDash}
+                />
+              )}
               <Arrow
                 points={[hcx, hcy, p2x, p2y]}
                 stroke={node.style.color}
@@ -2794,23 +2826,25 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 strokeWidth={node.style.strokeWidth}
                 opacity={strokeOpacity}
                 dash={strokeDash}
-                pointerLength={8 * zoomRatio}
-                pointerWidth={8 * zoomRatio}
+                pointerLength={8 * zoomRatio * arrSize}
+                pointerWidth={8 * zoomRatio * arrSize}
               />
             </Group>
           );
         } else {
+          const cubicPts = toCubicBezierPoints(p1x, p1y, hcx, hcy, p2x, p2y);
           nodeContent = (
             <Arrow
-              points={[p1x, p1y, hcx, hcy, p2x, p2y]}
+              points={cubicPts}
               bezier
               stroke={node.style.color}
               fill={node.style.color}
               strokeWidth={node.style.strokeWidth}
               opacity={strokeOpacity}
               dash={strokeDash}
-              pointerLength={8 * zoomRatio}
-              pointerWidth={8 * zoomRatio}
+              pointerLength={8 * zoomRatio * arrSize}
+              pointerWidth={8 * zoomRatio * arrSize}
+              pointerAtBeginning={Boolean(node.doubleArrow)}
             />
           );
         }
@@ -2825,6 +2859,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
       const isStraight = node.lineShape === 'straight';
       const tensionVal = isStraight ? 0 : 0.4;
+      const arrSize = node.arrowSize || 1.0;
 
       if (node.type === 'mega_line') {
         nodeContent = (
@@ -2839,7 +2874,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         );
       } else {
         if (isStraight && konvaPoints.length >= 4) {
-          const mainPoints = konvaPoints.slice(0, konvaPoints.length - 2);
+          const pFirstX = konvaPoints[0];
+          const pFirstY = konvaPoints[1];
+          const pSecondX = konvaPoints[2];
+          const pSecondY = konvaPoints[3];
           const pLastX = konvaPoints[konvaPoints.length - 4];
           const pLastY = konvaPoints[konvaPoints.length - 3];
           const pHeadX = konvaPoints[konvaPoints.length - 2];
@@ -2847,8 +2885,20 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
           nodeContent = (
             <Group>
+              {node.doubleArrow && (
+                <Arrow
+                  points={[pSecondX, pSecondY, pFirstX, pFirstY]}
+                  stroke={node.style.color}
+                  fill={node.style.color}
+                  strokeWidth={node.style.strokeWidth}
+                  opacity={strokeOpacity}
+                  dash={strokeDash}
+                  pointerLength={8 * zoomRatio * arrSize}
+                  pointerWidth={8 * zoomRatio * arrSize}
+                />
+              )}
               <Line
-                points={mainPoints}
+                points={konvaPoints}
                 stroke={node.style.color}
                 strokeWidth={node.style.strokeWidth}
                 opacity={strokeOpacity}
@@ -2861,20 +2911,24 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 strokeWidth={node.style.strokeWidth}
                 opacity={strokeOpacity}
                 dash={strokeDash}
-                pointerLength={8 * zoomRatio}
-                pointerWidth={8 * zoomRatio}
+                pointerLength={8 * zoomRatio * arrSize}
+                pointerWidth={8 * zoomRatio * arrSize}
               />
             </Group>
           );
         } else {
           nodeContent = (
-            <Line
+            <Arrow
               points={konvaPoints}
               tension={tensionVal}
               stroke={node.style.color}
+              fill={node.style.color}
               strokeWidth={node.style.strokeWidth}
               opacity={strokeOpacity}
               dash={strokeDash}
+              pointerLength={8 * zoomRatio * arrSize}
+              pointerWidth={8 * zoomRatio * arrSize}
+              pointerAtBeginning={Boolean(node.doubleArrow)}
             />
           );
         }
@@ -3248,7 +3302,20 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         primContent = <Line points={flatPoints} closed fill={fill} stroke={stroke} opacity={strokeOpacity} strokeWidth={pw} dash={dash} />;
       } else if (prim.type === 'vector' && prim.config.points) {
         const [x1, y1, x2, y2] = prim.config.points;
-        primContent = <Arrow points={[x1 * zoomRatio, -y1 * zoomRatio, x2 * zoomRatio, -y2 * zoomRatio]} stroke={stroke} fill={stroke} opacity={strokeOpacity} strokeWidth={pw} dash={dash} pointerLength={8 * zoomRatio} pointerWidth={8 * zoomRatio} />;
+        const arrSize = prim.config.arrowSize || 1.0;
+        primContent = (
+          <Arrow
+            points={[x1 * zoomRatio, -y1 * zoomRatio, x2 * zoomRatio, -y2 * zoomRatio]}
+            stroke={stroke}
+            fill={stroke}
+            opacity={strokeOpacity}
+            strokeWidth={pw}
+            dash={dash}
+            pointerLength={8 * zoomRatio * arrSize}
+            pointerWidth={8 * zoomRatio * arrSize}
+            pointerAtBeginning={Boolean(prim.config.doubleArrow)}
+          />
+        );
       } else if (prim.type === 'line' && prim.config.points) {
         const [x1, y1, x2, y2] = prim.config.points;
         primContent = <Line points={[x1 * zoomRatio, -y1 * zoomRatio, x2 * zoomRatio, -y2 * zoomRatio]} stroke={stroke} opacity={strokeOpacity} strokeWidth={pw} dash={dash} />;
@@ -3264,6 +3331,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         const p2y = -y2 * zoomRatio;
 
         const isStraight = prim.config.lineShape === 'straight';
+        const arrSize = prim.config.arrowSize || 1.0;
 
         if (prim.type === 'super_line') {
           primContent = isStraight ? (
@@ -3276,7 +3344,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             />
           ) : (
             <Line
-              points={[p1x, p1y, hcx, hcy, p2x, p2y]}
+              points={toCubicBezierPoints(p1x, p1y, hcx, hcy, p2x, p2y)}
               bezier
               stroke={stroke}
               strokeWidth={pw}
@@ -3287,13 +3355,26 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         } else {
           primContent = isStraight ? (
             <Group>
-              <Line
-                points={[p1x, p1y, hcx, hcy]}
-                stroke={stroke}
-                strokeWidth={pw}
-                opacity={strokeOpacity}
-                dash={dash}
-              />
+              {prim.config.doubleArrow ? (
+                <Arrow
+                  points={[hcx, hcy, p1x, p1y]}
+                  stroke={stroke}
+                  fill={stroke}
+                  strokeWidth={pw}
+                  opacity={strokeOpacity}
+                  dash={dash}
+                  pointerLength={8 * zoomRatio * arrSize}
+                  pointerWidth={8 * zoomRatio * arrSize}
+                />
+              ) : (
+                <Line
+                  points={[p1x, p1y, hcx, hcy]}
+                  stroke={stroke}
+                  strokeWidth={pw}
+                  opacity={strokeOpacity}
+                  dash={dash}
+                />
+              )}
               <Arrow
                 points={[hcx, hcy, p2x, p2y]}
                 stroke={stroke}
@@ -3301,21 +3382,22 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 strokeWidth={pw}
                 opacity={strokeOpacity}
                 dash={dash}
-                pointerLength={8 * zoomRatio}
-                pointerWidth={8 * zoomRatio}
+                pointerLength={8 * zoomRatio * arrSize}
+                pointerWidth={8 * zoomRatio * arrSize}
               />
             </Group>
           ) : (
             <Arrow
-              points={[p1x, p1y, hcx, hcy, p2x, p2y]}
+              points={toCubicBezierPoints(p1x, p1y, hcx, hcy, p2x, p2y)}
               bezier
               stroke={stroke}
               fill={stroke}
               strokeWidth={pw}
               opacity={strokeOpacity}
               dash={dash}
-              pointerLength={8 * zoomRatio}
-              pointerWidth={8 * zoomRatio}
+              pointerLength={8 * zoomRatio * arrSize}
+              pointerWidth={8 * zoomRatio * arrSize}
+              pointerAtBeginning={Boolean(prim.config.doubleArrow)}
             />
           );
         }
@@ -4063,9 +4145,9 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           <Group key="super_preview_step2">
             <Line points={[p1x, p1y, hcx, hcy, p2x, p2y]} stroke="#f59e0b" strokeWidth={1} dash={[3, 3]} opacity={0.6} />
             {drawingMode === 'draw_super_vector' ? (
-              <Arrow points={[p1x, p1y, hcx, hcy, p2x, p2y]} bezier stroke="#f59e0b" fill="#f59e0b" strokeWidth={3} pointerLength={12} pointerWidth={12} dash={[4, 4]} />
+              <Arrow points={toCubicBezierPoints(p1x, p1y, hcx, hcy, p2x, p2y)} bezier stroke="#f59e0b" fill="#f59e0b" strokeWidth={3} pointerLength={12} pointerWidth={12} dash={[4, 4]} />
             ) : (
-              <Line points={[p1x, p1y, hcx, hcy, p2x, p2y]} bezier stroke="#10b981" strokeWidth={3} dash={[4, 4]} />
+              <Line points={toCubicBezierPoints(p1x, p1y, hcx, hcy, p2x, p2y)} bezier stroke="#10b981" strokeWidth={3} dash={[4, 4]} />
             )}
             <Circle x={p1x} y={p1y} radius={5} fill="#f59e0b" />
             <Circle x={p2x} y={p2y} radius={5} fill="#38bdf8" />

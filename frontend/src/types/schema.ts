@@ -19,6 +19,8 @@ export interface PrimitiveConfig {
   points?: number[]; // [x1, y1, x2, y2, ...]
   controlPoint?: [number, number];
   lineShape?: 'straight' | 'curve';
+  doubleArrow?: boolean;
+  arrowSize?: number;
   strokeColor?: string;
   fillColor?: string;
   strokeOpacity?: number;
@@ -75,6 +77,8 @@ export interface SceneNode {
   points?: number[]; // [x1, y1, x2, y2] for vectors/lines
   controlPoint?: number[]; // [cx, cy] guidance point for super vector/line
   lineShape?: 'straight' | 'curve'; // Shape mode for super vector/line
+  doubleArrow?: boolean; // Double-ended arrow (head at start and end)
+  arrowSize?: number; // Arrowhead scale factor (default 1.0)
   vertices?: Array<[number, number]>; // For poly relative to node (x, y)
   startBinding?: PointBinding;
   endBinding?: PointBinding;

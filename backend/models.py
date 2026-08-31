@@ -23,6 +23,8 @@ class PrimitiveConfig(BaseModel):
     fillOpacity: Optional[float] = 1.0
     controlPoint: Optional[List[float]] = None
     lineShape: Optional[str] = 'curve'
+    doubleArrow: Optional[bool] = False
+    arrowSize: Optional[float] = 1.0
     strokeWidth: Optional[float] = None
     strokeStyle: Optional[str] = None
 
@@ -62,6 +64,8 @@ class SceneNode(BaseModel):
     points: Optional[List[float]] = None
     controlPoint: Optional[List[float]] = None
     lineShape: Optional[str] = 'curve'
+    doubleArrow: Optional[bool] = False
+    arrowSize: Optional[float] = 1.0
     vertices: Optional[List[List[float]]] = None
     startBinding: Optional[Dict[str, Any]] = None
     endBinding: Optional[Dict[str, Any]] = None

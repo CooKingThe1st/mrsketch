@@ -724,9 +724,14 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                 rx2 = parent_x + ((ox + x2) * cos_r - (oy + y2) * sin_r)
                 ry2 = parent_y + ((ox + x2) * sin_r + (oy + y2) * cos_r)
 
+                is_double = getattr(cfg, 'doubleArrow', False)
+                arr_style = "<|-|>" if is_double else "-|>"
+                arr_size = getattr(cfg, 'arrowSize', 1.0) or 1.0
+                mut_scale = 15 * arr_size
+
                 if prim.type == 'vector':
                     ann = ax.annotate('', xy=(rx2, ry2), xytext=(rx1, ry1),
-                                arrowprops=dict(arrowstyle="-|>", color=color, lw=pw, linestyle=pls, mutation_scale=15, shrinkA=0, shrinkB=0))
+                                arrowprops=dict(arrowstyle=arr_style, color=color, lw=pw, linestyle=pls, mutation_scale=mut_scale, shrinkA=0, shrinkB=0))
                     ann.set_clip_path(ax.patch)
                 elif prim.type == 'line':
                     lines = ax.plot([rx1, rx2], [ry1, ry2], color=color, linewidth=pw, linestyle=pls)
@@ -755,22 +760,27 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                             ax.add_patch(patch)
                     else:  # super_vector
                         if is_straight:
-                            l1 = ax.plot([rx1, rcx], [ry1, rcy], color=color, linewidth=pw, linestyle=pls)
-                            for l in l1:
-                                l.set_clip_path(ax.patch)
-                            ann = ax.annotate('', xy=(rx2, ry2), xytext=(rcx, rcy),
-                                        arrowprops=dict(arrowstyle="-|>", color=color, lw=pw, linestyle=pls, mutation_scale=15, shrinkA=0, shrinkB=0))
-                            ann.set_clip_path(ax.patch)
+                            if is_double:
+                                ann1 = ax.annotate('', xy=(rx1, ry1), xytext=(rcx, rcy),
+                                            arrowprops=dict(arrowstyle="-|>", color=color, lw=pw, linestyle=pls, mutation_scale=mut_scale, shrinkA=0, shrinkB=0))
+                                ann1.set_clip_path(ax.patch)
+                            else:
+                                l1 = ax.plot([rx1, rcx], [ry1, rcy], color=color, linewidth=pw, linestyle=pls)
+                                for l in l1:
+                                    l.set_clip_path(ax.patch)
+                            ann2 = ax.annotate('', xy=(rx2, ry2), xytext=(rcx, rcy),
+                                        arrowprops=dict(arrowstyle="-|>", color=color, lw=pw, linestyle=pls, mutation_scale=mut_scale, shrinkA=0, shrinkB=0))
+                            ann2.set_clip_path(ax.patch)
                         else:
                             from matplotlib.patches import FancyArrowPatch
                             path = build_catmull_rom_path([(rx1, ry1), (rcx, rcy), (rx2, ry2)])
                             arrow = FancyArrowPatch(
                                 path=path,
-                                arrowstyle="-|>",
+                                arrowstyle=arr_style,
                                 color=color,
                                 linewidth=pw,
                                 linestyle=pls,
-                                mutation_scale=15,
+                                mutation_scale=mut_scale,
                             )
                             arrow.set_clip_path(ax.patch)
                             ax.add_patch(arrow)
@@ -855,8 +865,13 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                 rx2 = node.x + (dx2 * cos_r - dy2 * sin_r)
                 ry2 = node.y + (dx2 * sin_r + dy2 * cos_r)
 
+                is_double = getattr(node, 'doubleArrow', False)
+                arr_style = "<|-|>" if is_double else "-|>"
+                arr_size = getattr(node, 'arrowSize', 1.0) or 1.0
+                mut_scale = 18 * arr_size
+
                 ann = ax.annotate('', xy=(rx2, ry2), xytext=(rx1, ry1),
-                            arrowprops=dict(arrowstyle="-|>", color=node_color, lw=node.style.strokeWidth, linestyle=ls, mutation_scale=18, shrinkA=0, shrinkB=0))
+                            arrowprops=dict(arrowstyle=arr_style, color=node_color, lw=node.style.strokeWidth, linestyle=ls, mutation_scale=mut_scale, shrinkA=0, shrinkB=0))
                 ann.set_clip_path(ax.patch)
 
             elif node.type == 'line':
@@ -907,23 +922,33 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                         patch.set_clip_path(ax.patch)
                         ax.add_patch(patch)
                 else: # super_vector
+                    is_double = getattr(node, 'doubleArrow', False)
+                    arr_style = "<|-|>" if is_double else "-|>"
+                    arr_size = getattr(node, 'arrowSize', 1.0) or 1.0
+                    mut_scale = 18 * arr_size
+
                     if is_straight:
-                        l1 = ax.plot([rx1, rcx], [ry1, rcy], color=node_color, linestyle=ls, linewidth=node.style.strokeWidth)
-                        for l in l1:
-                            l.set_clip_path(ax.patch)
-                        ann = ax.annotate('', xy=(rx2, ry2), xytext=(rcx, rcy),
-                                    arrowprops=dict(arrowstyle="-|>", color=node_color, lw=node.style.strokeWidth, linestyle=ls, mutation_scale=18, shrinkA=0, shrinkB=0))
-                        ann.set_clip_path(ax.patch)
+                        if is_double:
+                            ann1 = ax.annotate('', xy=(rx1, ry1), xytext=(rcx, rcy),
+                                        arrowprops=dict(arrowstyle="-|>", color=node_color, lw=node.style.strokeWidth, linestyle=ls, mutation_scale=mut_scale, shrinkA=0, shrinkB=0))
+                            ann1.set_clip_path(ax.patch)
+                        else:
+                            l1 = ax.plot([rx1, rcx], [ry1, rcy], color=node_color, linestyle=ls, linewidth=node.style.strokeWidth)
+                            for l in l1:
+                                l.set_clip_path(ax.patch)
+                        ann2 = ax.annotate('', xy=(rx2, ry2), xytext=(rcx, rcy),
+                                    arrowprops=dict(arrowstyle="-|>", color=node_color, lw=node.style.strokeWidth, linestyle=ls, mutation_scale=mut_scale, shrinkA=0, shrinkB=0))
+                        ann2.set_clip_path(ax.patch)
                     else:
                         from matplotlib.patches import FancyArrowPatch
                         path = build_catmull_rom_path([(rx1, ry1), (rcx, rcy), (rx2, ry2)])
                         arrow = FancyArrowPatch(
                             path=path,
-                            arrowstyle="-|>",
+                            arrowstyle=arr_style,
                             color=node_color,
                             linestyle=ls,
                             linewidth=node.style.strokeWidth,
-                            mutation_scale=18,
+                            mutation_scale=mut_scale,
                         )
                         arrow.set_clip_path(ax.patch)
                         ax.add_patch(arrow)
@@ -950,12 +975,25 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                             for l in lines:
                                 l.set_clip_path(ax.patch)
                         else:  # mega_vector
-                            if len(coords) > 2:
-                                lines = ax.plot(xs[:-1], ys[:-1], color=node_color, linestyle=ls, linewidth=node.style.strokeWidth)
-                                for l in lines:
-                                    l.set_clip_path(ax.patch)
+                            is_double = getattr(node, 'doubleArrow', False)
+                            arr_size = getattr(node, 'arrowSize', 1.0) or 1.0
+                            mut_scale = 18 * arr_size
+
+                            if is_double:
+                                ann_start = ax.annotate('', xy=coords[0], xytext=coords[1],
+                                            arrowprops=dict(arrowstyle="-|>", color=node_color, lw=node.style.strokeWidth, linestyle=ls, mutation_scale=mut_scale, shrinkA=0, shrinkB=0))
+                                ann_start.set_clip_path(ax.patch)
+                                if len(coords) > 2:
+                                    lines = ax.plot(xs[1:-1], ys[1:-1], color=node_color, linestyle=ls, linewidth=node.style.strokeWidth)
+                                    for l in lines:
+                                        l.set_clip_path(ax.patch)
+                            else:
+                                if len(coords) > 2:
+                                    lines = ax.plot(xs[:-1], ys[:-1], color=node_color, linestyle=ls, linewidth=node.style.strokeWidth)
+                                    for l in lines:
+                                        l.set_clip_path(ax.patch)
                             ann = ax.annotate('', xy=coords[-1], xytext=coords[-2],
-                                        arrowprops=dict(arrowstyle="-|>", color=node_color, lw=node.style.strokeWidth, linestyle=ls, mutation_scale=18, shrinkA=0, shrinkB=0))
+                                        arrowprops=dict(arrowstyle="-|>", color=node_color, lw=node.style.strokeWidth, linestyle=ls, mutation_scale=mut_scale, shrinkA=0, shrinkB=0))
                             ann.set_clip_path(ax.patch)
                     else:
                         from matplotlib.patches import PathPatch, FancyArrowPatch
@@ -965,13 +1003,18 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
                             patch.set_clip_path(ax.patch)
                             ax.add_patch(patch)
                         else:  # mega_vector
+                            is_double = getattr(node, 'doubleArrow', False)
+                            arr_style = "<|-|>" if is_double else "-|>"
+                            arr_size = getattr(node, 'arrowSize', 1.0) or 1.0
+                            mut_scale = 18 * arr_size
+
                             arrow = FancyArrowPatch(
                                 path=path,
-                                arrowstyle="-|>",
+                                arrowstyle=arr_style,
                                 color=node_color,
                                 linestyle=ls,
                                 linewidth=node.style.strokeWidth,
-                                mutation_scale=18,
+                                mutation_scale=mut_scale,
                             )
                             arrow.set_clip_path(ax.patch)
                             ax.add_patch(arrow)

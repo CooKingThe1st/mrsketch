@@ -794,6 +794,75 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
 
+                    {(activePrimitive.type === 'vector' ||
+                      activePrimitive.type === 'super_vector' ||
+                      activePrimitive.type === 'mega_vector') && (
+                      <div className="space-y-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800">
+                        <span className="text-[11px] font-semibold text-sky-400 uppercase tracking-wider block">
+                          Arrowhead Settings
+                        </span>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <label className="text-[11px] font-semibold text-slate-300">Double Arrow (↔)</label>
+                            <span className="text-[9px] text-slate-500">Arrowhead at both start & end</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={activePrimitive.config.doubleArrow ?? false}
+                            onChange={(e) =>
+                              onUpdatePrimitive(selectedPrimitiveIdx, {
+                                ...activePrimitive,
+                                config: { ...activePrimitive.config, doubleArrow: e.target.checked },
+                              })
+                            }
+                            className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="space-y-1 pt-2 border-t border-slate-800/80">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-semibold text-slate-400">Arrowhead Size</label>
+                            <span className="text-xs font-mono text-sky-400 font-bold">
+                              {(activePrimitive.config.arrowSize ?? 1.0).toFixed(1)}x
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min="0.5"
+                              max="3.0"
+                              step="0.1"
+                              value={activePrimitive.config.arrowSize ?? 1.0}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 1.0;
+                                onUpdatePrimitive(selectedPrimitiveIdx, {
+                                  ...activePrimitive,
+                                  config: { ...activePrimitive.config, arrowSize: val },
+                                });
+                              }}
+                              className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                            />
+                            <input
+                              type="number"
+                              min="0.5"
+                              max="4.0"
+                              step="0.1"
+                              value={activePrimitive.config.arrowSize ?? 1.0}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 1.0;
+                                onUpdatePrimitive(selectedPrimitiveIdx, {
+                                  ...activePrimitive,
+                                  config: { ...activePrimitive.config, arrowSize: val },
+                                });
+                              }}
+                              className="w-14 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-sky-400 font-bold text-center"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-2 pt-2 border-t border-slate-700/60">
                       {/* Color Presets */}
                       <div className="space-y-1">
@@ -1756,6 +1825,78 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Vector Family Settings (Arrow Size & Double Arrow) */}
+                    {(selectedNode.type === 'vector' ||
+                      selectedNode.type === 'super_vector' ||
+                      selectedNode.type === 'mega_vector') && (
+                      <div className="space-y-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800">
+                        <span className="text-[11px] font-semibold text-sky-400 uppercase tracking-wider block">
+                          Arrowhead Settings
+                        </span>
+
+                        {/* Double Arrow (Start & End) */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <label className="text-[11px] font-semibold text-slate-300">Double Arrow (↔)</label>
+                            <span className="text-[9px] text-slate-500">Arrowhead at both start & end</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={selectedNode.doubleArrow ?? false}
+                            onChange={(e) =>
+                              onUpdateNode({
+                                ...selectedNode,
+                                doubleArrow: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                          />
+                        </div>
+
+                        {/* Arrow Size */}
+                        <div className="space-y-1 pt-2 border-t border-slate-800/80">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-semibold text-slate-400">Arrowhead Size</label>
+                            <span className="text-xs font-mono text-sky-400 font-bold">
+                              {(selectedNode.arrowSize ?? 1.0).toFixed(1)}x
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min="0.5"
+                              max="3.0"
+                              step="0.1"
+                              value={selectedNode.arrowSize ?? 1.0}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 1.0;
+                                onUpdateNode({
+                                  ...selectedNode,
+                                  arrowSize: val,
+                                });
+                              }}
+                              className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                            />
+                            <input
+                              type="number"
+                              min="0.5"
+                              max="4.0"
+                              step="0.1"
+                              value={selectedNode.arrowSize ?? 1.0}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 1.0;
+                                onUpdateNode({
+                                  ...selectedNode,
+                                  arrowSize: val,
+                                });
+                              }}
+                              className="w-14 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-sky-400 font-bold text-center"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
 
