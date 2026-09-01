@@ -123,6 +123,10 @@ export interface PlotOptions {
   cropToContent?: boolean; // Whether to automatically crop export boundary to scene content
   cropPadding?: number; // Padding around cropped content in scientific units (default 0.2)
   renderMathOnCanvas?: boolean; // Whether to render LaTeX math formulas directly on the canvas using KaTeX
+  activeWorkspaceTab?: 'main_scene' | 'robot_designer';
+  showLeftSidebar?: boolean;
+  showRightPanel?: boolean;
+  autoSaveInterval?: number;
 }
 
 export interface ProjectLayout {

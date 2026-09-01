@@ -159,9 +159,18 @@ export const DEFAULT_PLOT_OPTIONS: PlotOptions = {
   title: 'Robotics Scene Layout',
   fontSize: 12,
   backgroundColor: '#ffffff',
+  bgOpacity: 1.0,
   labelBoxOpacity: 0.0,
   scaleLabelsWithZoom: true,
   renderMathOnCanvas: true,
+  cropToContent: false,
+  cropPadding: 0.05,
+  marginPadding: 0.05,
+  showPlotBorder: true,
+  grabHandleRadius: 14,
+  activeWorkspaceTab: 'main_scene',
+  showLeftSidebar: true,
+  showRightPanel: true,
 };
 
 export const PRESET_ROBOTS: Record<string, RobotDefinition> = {

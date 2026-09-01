@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ProjectLayout, SceneNode, ExportBounds, MacroDefinition, RobotDefinition, PlotOptions, PrimitiveDefinition, PointBinding, DrawingMode, PendingShapeToAdd } from './types/schema';
-import { INITIAL_LAYOUT } from './utils/initialData';
+import { INITIAL_LAYOUT, DEFAULT_PLOT_OPTIONS, PRESET_ROBOTS } from './utils/initialData';
 import { Sidebar } from './components/Sidebar';
 import { CanvasStage } from './components/CanvasStage';
 import { MacroEditor } from './components/MacroEditor';
@@ -9,7 +9,8 @@ import { PlotSettings } from './components/PlotSettings';
 import { StandalonePreview } from './components/StandalonePreview';
 import { ChangelogModal } from './components/ChangelogModal';
 import { TutorialModal } from './components/TutorialModal';
-import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid, BookOpen } from 'lucide-react';
+import { SyncModal } from './components/SyncModal';
+import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid, BookOpen, Cloud } from 'lucide-react';
 import { isDrawioContent, convertDrawioToProjectLayout } from './utils/drawioImporter';
 import { getApiBaseUrl } from './utils/api';
 
@@ -281,6 +282,7 @@ export function App() {
   const [hashRoute, setHashRoute] = useState<string>(window.location.hash);
   const [isChangelogOpen, setIsChangelogOpen] = useState<boolean>(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
 
   // Detect first-time visitor and prompt the tutorial guide popup
   useEffect(() => {
@@ -741,6 +743,13 @@ export function App() {
           ...layout.plotOptions,
           renderMathOnCanvas: !currentVal,
         });
+        return;
+      }
+
+      // Toggle Admin Cloud Sync Modal Shortcut (Ctrl+Shift+S or Cmd+Shift+S)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        setIsSyncModalOpen((prev) => !prev);
         return;
       }
     };
@@ -1336,12 +1345,22 @@ export function App() {
   };
 
   const handleExportJSON = () => {
-    const jsonStr = JSON.stringify(layout, null, 2);
+    const fullLayoutToExport: ProjectLayout = {
+      ...layout,
+      plotOptions: {
+        ...DEFAULT_PLOT_OPTIONS,
+        ...layout.plotOptions,
+        activeWorkspaceTab,
+        showLeftSidebar,
+        showRightPanel,
+      },
+    };
+    const jsonStr = JSON.stringify(fullLayoutToExport, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `OOS_json_${Date.now()}.json`;
+    a.download = `mrsketch_layout_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1360,10 +1379,30 @@ export function App() {
 
     try {
       const parsed = JSON.parse(trimmed);
-      if (parsed && parsed.scene && parsed.exportBounds) {
-        updateLayoutWithHistory(parsed);
+      if (parsed && (parsed.scene || parsed.exportBounds)) {
+        const fullLayout: ProjectLayout = {
+          macros: parsed.macros || {},
+          definitions: parsed.definitions || PRESET_ROBOTS,
+          exportBounds: parsed.exportBounds || { xMin: -10, yMin: -10, xMax: 10, yMax: 10 },
+          plotOptions: {
+            ...DEFAULT_PLOT_OPTIONS,
+            ...(parsed.plotOptions || {}),
+          },
+          scene: parsed.scene || [],
+        };
+        updateLayoutWithHistory(fullLayout);
+        if (fullLayout.plotOptions?.activeWorkspaceTab) {
+          setActiveWorkspaceTab(fullLayout.plotOptions.activeWorkspaceTab);
+        }
+        if (typeof fullLayout.plotOptions?.showLeftSidebar === 'boolean') {
+          setShowLeftSidebar(fullLayout.plotOptions.showLeftSidebar);
+        }
+        if (typeof fullLayout.plotOptions?.showRightPanel === 'boolean') {
+          setShowRightPanel(fullLayout.plotOptions.showRightPanel);
+        }
         setSelectedNodeId(null);
-        alert('Native layout JSON imported successfully!');
+        setSelectedNodeIds([]);
+        alert('Native layout JSON imported successfully with all toolbar & artboard settings restored!');
       } else if (isDrawioContent(parsed)) {
         const translatedLayout = convertDrawioToProjectLayout(parsed, layout);
         updateLayoutWithHistory(translatedLayout);
@@ -1499,6 +1538,20 @@ export function App() {
                       <span className="text-[10px] text-slate-400">Restores native layout file (.json)</span>
                     </div>
                     <Upload className="w-3.5 h-3.5 text-indigo-400" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsSyncModalOpen(true);
+                      setActiveMenu(null);
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-800 flex items-center justify-between transition border-t border-slate-800"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sky-400">Admin Cloud Sync</span>
+                      <span className="text-[10px] text-slate-400">Push / Pull via Redis (Ctrl+Shift+S)</span>
+                    </div>
+                    <Cloud className="w-3.5 h-3.5 text-sky-400" />
                   </button>
                 </div>
               )}
@@ -1843,6 +1896,22 @@ export function App() {
                       <span className="text-[10px] text-slate-400">Release changelog (v1.6)</span>
                     </div>
                   </button>
+
+                  <button
+                    onClick={() => {
+                      setIsSyncModalOpen(true);
+                      setActiveMenu(null);
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-800 flex items-center justify-between transition border-t border-slate-800"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-100 flex items-center gap-1.5">
+                        <Cloud className="w-3.5 h-3.5 text-sky-400" />
+                        Admin Cloud Sync
+                      </span>
+                      <span className="text-[10px] text-slate-400">Sync workspace across devices (Ctrl+Shift+S)</span>
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
@@ -1858,6 +1927,16 @@ export function App() {
             accept=".json,.xml,.drawio"
             className="hidden"
           />
+
+          {/* Quick Cloud Sync Trigger Button */}
+          <button
+            onClick={() => setIsSyncModalOpen(true)}
+            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+            title="Admin Cloud Sync (Ctrl+Shift+S)"
+          >
+            <Cloud className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Cloud Sync</span>
+          </button>
 
           {/* Quick Side Panel Toggle Buttons */}
           <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700">
@@ -2068,6 +2147,36 @@ export function App() {
 
       {/* Tutorial / Onboarding Modal */}
       <TutorialModal isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
+
+      {/* Admin Cloud Sync Modal */}
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        currentLayout={{
+          ...layout,
+          plotOptions: {
+            ...DEFAULT_PLOT_OPTIONS,
+            ...layout.plotOptions,
+            activeWorkspaceTab,
+            showLeftSidebar,
+            showRightPanel,
+          },
+        }}
+        onApplyLayout={(newLayout) => {
+          updateLayoutWithHistory(newLayout);
+          if (newLayout.plotOptions?.activeWorkspaceTab) {
+            setActiveWorkspaceTab(newLayout.plotOptions.activeWorkspaceTab);
+          }
+          if (typeof newLayout.plotOptions?.showLeftSidebar === 'boolean') {
+            setShowLeftSidebar(newLayout.plotOptions.showLeftSidebar);
+          }
+          if (typeof newLayout.plotOptions?.showRightPanel === 'boolean') {
+            setShowRightPanel(newLayout.plotOptions.showRightPanel);
+          }
+          setSelectedNodeId(null);
+          setSelectedNodeIds([]);
+        }}
+      />
     </div>
   );
 }

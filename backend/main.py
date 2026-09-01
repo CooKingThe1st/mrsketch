@@ -1,17 +1,47 @@
-from __future__ import annotations
 import os
-from fastapi import FastAPI, HTTPException, Response, Query
+import json
+from typing import Optional, Dict, Any
+from datetime import datetime, timezone
+from fastapi import FastAPI, HTTPException, Response, Query, Request, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from models import ProjectLayout
 from compiler import compile_scene, compile_scene_to_base64
 import uvicorn
+try:
+    import redis
+except ImportError:
+    redis = None
 
 app = FastAPI(
     title="Scientific Sketch Link Compiler Service",
     description="Local backend service mapping layout JSON configurations directly to publication-ready Matplotlib LaTeX outputs."
 )
+
+# Redis Connection Setup for Admin Sync Engine
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+def get_redis():
+    """Lazily connect to Redis, returning None gracefully if Redis is unavailable or uninstalled."""
+    if redis is None:
+        return None
+    try:
+        r = redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=2)
+        r.ping()
+        return r
+    except Exception as e:
+        print(f"Redis connection unavailable: {e}")
+        return None
+
+def verify_admin_secret(x_admin_secret: Optional[str] = Header(None, alias="x-admin-secret")):
+    expected = os.getenv("ADMIN_SECRET", "admin")
+    if not x_admin_secret or x_admin_secret.strip() != expected.strip():
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: invalid or missing x-admin-secret header."
+        )
+    return x_admin_secret
 
 # Enable CORS for Vite frontend
 app.add_middleware(
@@ -80,6 +110,100 @@ def backup_load():
     except Exception as e:
         print("Backend Backup Load Error:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/sync/status")
+def sync_status():
+    """Check if Redis is reachable and if an admin state is currently stored."""
+    r = get_redis()
+    if r is None:
+        return {"connected": False, "message": "Redis connection unavailable. Verify REDIS_URL."}
+    try:
+        has_state = bool(r.exists("admin_state"))
+        meta_str = r.get("admin_state_meta")
+        meta = json.loads(meta_str) if meta_str else {}
+        return {
+            "connected": True,
+            "has_state": has_state,
+            "updated_at": meta.get("updated_at"),
+            "scene_elements": meta.get("scene_elements", 0)
+        }
+    except Exception as e:
+        return {"connected": False, "message": str(e)}
+
+@app.post("/api/sync/push")
+@app.post("/push")
+async def sync_push(
+    request: Request,
+    secret: str = Depends(verify_admin_secret)
+):
+    """Save active workspace layout JSON to Redis key admin_state."""
+    r = get_redis()
+    if r is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Redis service unavailable. Check REDIS_URL in environment variables."
+        )
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict) or ("scene" not in payload and "exportBounds" not in payload):
+            raise HTTPException(status_code=400, detail="Invalid layout JSON payload structure.")
+        
+        now_iso = datetime.now(timezone.utc).isoformat()
+        meta = {
+            "updated_at": now_iso,
+            "scene_elements": len(payload.get("scene", [])),
+            "client_ip": request.client.host if request.client else "unknown"
+        }
+        
+        r.set("admin_state", json.dumps(payload))
+        r.set("admin_state_meta", json.dumps(meta))
+        
+        return {
+            "status": "ok",
+            "message": "Workspace successfully pushed to cloud Redis.",
+            "synced_at": now_iso,
+            "scene_elements": meta["scene_elements"]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("Sync Push Error:", str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to push state: {str(e)}")
+
+@app.get("/api/sync/pull")
+@app.get("/pull")
+def sync_pull(
+    secret: str = Depends(verify_admin_secret)
+):
+    """Retrieve workspace layout JSON from Redis key admin_state."""
+    r = get_redis()
+    if r is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Redis service unavailable. Check REDIS_URL in environment variables."
+        )
+    try:
+        raw_state = r.get("admin_state")
+        if not raw_state:
+            return {
+                "status": "empty",
+                "message": "No workspace state found in Redis yet. Push a workspace first!"
+            }
+        
+        meta_str = r.get("admin_state_meta")
+        meta = json.loads(meta_str) if meta_str else {}
+        data = json.loads(raw_state)
+        
+        return {
+            "status": "ok",
+            "data": data,
+            "meta": meta
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("Sync Pull Error:", str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to pull state: {str(e)}")
 
 @app.get("/health")
 def health():

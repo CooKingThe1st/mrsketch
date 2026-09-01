@@ -94,6 +94,7 @@ class ExportBounds(BaseModel):
 class PlotOptions(BaseModel):
     showGrid: bool = True
     gridStyle: str = 'dotted'
+    gridResolution: Optional[float] = 1.0
     showAxis: bool = True
     showAxisLabels: bool = True
     xLabel: Optional[str] = "$x$ [m]"
@@ -102,11 +103,20 @@ class PlotOptions(BaseModel):
     fontSize: Optional[float] = 12.0
     backgroundColor: str = "#ffffff"
     bgOpacity: Optional[float] = 1.0
+    labelBoxOpacity: Optional[float] = 0.0
+    scaleLabelsWithZoom: Optional[bool] = True
     marginPadding: Optional[float] = 0.05
     showPlotBorder: Optional[bool] = True
+    grabHandleRadius: Optional[int] = 14
     cropToContent: Optional[bool] = False
-    cropPadding: Optional[float] = 0.2
-    renderMathOnCanvas: Optional[bool] = False
+    cropPadding: Optional[float] = 0.05
+    renderMathOnCanvas: Optional[bool] = True
+    activeWorkspaceTab: Optional[str] = 'main_scene'
+    showLeftSidebar: Optional[bool] = True
+    showRightPanel: Optional[bool] = True
+
+    class Config:
+        extra = 'allow'
 
 class ProjectLayout(BaseModel):
     macros: Dict[str, MacroDefinition] = {}
