@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectLayout } from '../types/schema';
 import { filterLayoutForExport } from '../utils/aabbFilter';
 import { getApiBaseUrl } from '../utils/api';
-import { RefreshCw, Download, FileCode, CheckCircle2, AlertCircle, ExternalLink, Copy } from 'lucide-react';
+import { RefreshCw, Download, FileCode, CheckCircle2, AlertCircle, ExternalLink, Copy, Zap, Clock } from 'lucide-react';
 import { getCurrentExportFileName, consumeExportFileName, getCurrentExportBaseName } from '../utils/exportNaming';
 
 interface LivePreviewProps {
@@ -14,21 +14,42 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   layout,
   backendUrl = getApiBaseUrl(),
 }) => {
+  const [autoCompile, setAutoCompile] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('mrsketch_auto_compile') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [lastCompiledAt, setLastCompiledAt] = useState<string | null>(null);
+  const [hasPendingChanges, setHasPendingChanges] = useState<boolean>(false);
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastJsonRef = useRef<string>('');
 
-  const compileLayout = async () => {
+  const toggleAutoCompile = () => {
+    const next = !autoCompile;
+    setAutoCompile(next);
+    try {
+      localStorage.setItem('mrsketch_auto_compile', String(next));
+    } catch {}
+    if (next) {
+      compileLayout();
+    }
+  };
+
+  const compileLayout = async (force: boolean = false) => {
     const exportableLayout = filterLayoutForExport(layout);
     const currentJson = JSON.stringify(exportableLayout);
 
     // Skip redundant network request if visible export layout has not changed
-    if (currentJson === lastJsonRef.current && previewImage) {
+    if (!force && currentJson === lastJsonRef.current && previewImage) {
+      setHasPendingChanges(false);
       return;
     }
 
@@ -61,6 +82,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
       setPreviewImage(imgUri);
       setLastCompiledAt(new Date().toLocaleTimeString());
       lastJsonRef.current = currentJson;
+      setHasPendingChanges(false);
     } catch (err: any) {
       if (err.name === 'AbortError') {
         // Request was safely aborted for newer layout state
@@ -75,19 +97,50 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     }
   };
 
-  // Debounced sync loop (500ms hysteresis live preview)
+  // Detect pending changes when layout changes in manual mode
   useEffect(() => {
+    const exportableLayout = filterLayoutForExport(layout);
+    const currentJson = JSON.stringify(exportableLayout);
+    if (lastJsonRef.current && currentJson !== lastJsonRef.current) {
+      setHasPendingChanges(true);
+    }
+  }, [layout]);
+
+  // Initial compile or auto-compile debounced sync loop
+  useEffect(() => {
+    // Initial mount: compile once so user sees initial state
+    if (!lastJsonRef.current) {
+      compileLayout();
+      return;
+    }
+
+    if (!autoCompile) {
+      return;
+    }
+
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
 
     debounceTimer.current = setTimeout(() => {
       compileLayout();
-    }, 500);
+    }, 600);
 
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
+  }, [layout, autoCompile]);
+
+  // Keyboard shortcut Ctrl+Enter / Cmd+Enter to manually trigger render
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        compileLayout(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [layout]);
 
   const handlePopOutPreview = () => {
@@ -188,19 +241,30 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
             <FileCode className="w-4 h-4 text-emerald-400" />
             <span className="font-semibold text-xs">Publication Matplotlib Output</span>
             {isCompiling ? (
-              <RefreshCw className="w-3.5 h-3.5 text-indigo-400 animate-spin ml-1" />
+              <span className="flex items-center gap-1 text-[11px] text-indigo-400 font-mono">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin ml-1" />
+                Compiling...
+              </span>
+            ) : hasPendingChanges ? (
+              <span className="flex items-center gap-1 text-[11px] text-amber-400 font-mono" title="Canvas has unrendered changes. Click Render or press Ctrl+Enter">
+                <Clock className="w-3.5 h-3.5 ml-1" />
+                Changes pending
+              </span>
             ) : (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 ml-1" />
+              <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-mono">
+                <CheckCircle2 className="w-3.5 h-3.5 ml-1" />
+                Synced
+              </span>
             )}
           </div>
           <div className="flex items-center gap-2">
             {lastCompiledAt && (
-              <span className="text-[10px] text-slate-500 font-mono">Updated: {lastCompiledAt}</span>
+              <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">Updated: {lastCompiledAt}</span>
             )}
 
             <button
               onClick={handlePopOutPreview}
-              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold flex items-center gap-1 transition"
+              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold flex items-center gap-1 transition shadow-sm"
               title="Pop Out Live Preview URL Tab (Overleaf style)"
             >
               <ExternalLink className="w-3.5 h-3.5" />
@@ -220,40 +284,70 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
           </div>
         </div>
 
-        {/* Row 2: Export Options */}
-        <div className="p-2 px-3 bg-slate-950/40 flex items-center justify-end gap-2 text-xs">
-          <span className="text-[10px] font-semibold text-slate-400 mr-auto uppercase tracking-wider">Export Panel</span>
+        {/* Row 2: Render Trigger & Export Options */}
+        <div className="p-2 px-3 bg-slate-950/40 flex items-center justify-between gap-2 text-xs flex-wrap">
+          {/* Left: Render Button & Auto-Compile Toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => compileLayout(true)}
+              disabled={isCompiling}
+              className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1.5 transition shadow-md ${
+                hasPendingChanges
+                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+              } disabled:opacity-50`}
+              title="Compile LaTeX output (Shortcut: Ctrl+Enter)"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>{isCompiling ? 'Rendering...' : 'Render TeX'}</span>
+              <kbd className="hidden md:inline text-[9px] bg-black/20 px-1 rounded font-mono font-normal">Ctrl+↵</kbd>
+            </button>
 
-          <button
-            onClick={handleDownloadPng}
-            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-semibold flex items-center gap-1 transition border border-slate-700"
-            title="Download PNG image"
-            disabled={!previewImage}
-          >
-            <Download className="w-3.5 h-3.5 text-blue-400" />
-            <span>Export PNG</span>
-          </button>
+            {/* Auto Compile Toggle */}
+            <label className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] text-slate-300 hover:text-slate-100 transition px-1.5 py-0.5 rounded bg-slate-800/60 border border-slate-700/60" title="When ON, auto-compiles on canvas edits. When OFF (recommended), only renders on demand for 60fps drawing speed.">
+              <input
+                type="checkbox"
+                checked={autoCompile}
+                onChange={toggleAutoCompile}
+                className="w-3 h-3 accent-indigo-500 rounded cursor-pointer"
+              />
+              <span>Live Sync</span>
+            </label>
+          </div>
 
-          <button
-            onClick={handleCopyPngToClipboard}
-            className={`px-2.5 py-1 text-slate-200 rounded text-xs font-semibold flex items-center gap-1 transition border ${
-              copiedPng ? 'bg-emerald-900/60 border-emerald-500' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'
-            }`}
-            title="Copy PNG image directly to clipboard"
-            disabled={!previewImage}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{copiedPng ? 'Copied PNG!' : 'Copy PNG'}</span>
-          </button>
+          {/* Right: Export Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadPng}
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-semibold flex items-center gap-1 transition border border-slate-700"
+              title="Download PNG image"
+              disabled={!previewImage}
+            >
+              <Download className="w-3.5 h-3.5 text-blue-400" />
+              <span>PNG</span>
+            </button>
 
-          <button
-            onClick={handleDownloadPdf}
-            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1 transition"
-            title="Download Publication Vector PDF"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export PDF</span>
-          </button>
+            <button
+              onClick={handleCopyPngToClipboard}
+              className={`px-2.5 py-1 text-slate-200 rounded text-xs font-semibold flex items-center gap-1 transition border ${
+                copiedPng ? 'bg-emerald-900/60 border-emerald-500' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'
+              }`}
+              title="Copy PNG image directly to clipboard"
+              disabled={!previewImage}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{copiedPng ? 'Copied' : 'Copy'}</span>
+            </button>
+
+            <button
+              onClick={handleDownloadPdf}
+              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1 transition"
+              title="Download Publication Vector PDF"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -266,14 +360,20 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
             <p className="text-[11px] font-mono text-red-300/80">{error}</p>
           </div>
         ) : previewImage ? (
-          <div className="w-full h-full flex items-center justify-center p-2 bg-slate-950 overflow-auto">
-            <div className="p-2 bg-white rounded-lg shadow-2xl border border-slate-700 max-w-full max-h-full flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-center p-2 bg-slate-950 overflow-auto relative">
+            <div className={`p-2 bg-white rounded-lg shadow-2xl border border-slate-700 max-w-full max-h-full flex items-center justify-center transition-opacity duration-200 ${hasPendingChanges ? 'opacity-75' : 'opacity-100'}`}>
               <img
                 src={previewImage}
                 alt="Matplotlib Live Preview"
                 className="max-w-full max-h-full w-auto h-auto object-contain rounded"
               />
             </div>
+            {hasPendingChanges && (
+              <div className="absolute bottom-3 bg-amber-950/80 border border-amber-600/70 text-amber-200 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur shadow-lg flex items-center gap-1.5 pointer-events-none">
+                <Clock className="w-3 h-3 text-amber-400" />
+                <span>Showing previous render • Press Ctrl+Enter to update</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 text-slate-500">
@@ -285,3 +385,4 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     </div>
   );
 };
+

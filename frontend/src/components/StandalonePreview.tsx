@@ -3,7 +3,7 @@ import type { ProjectLayout } from '../types/schema';
 import { INITIAL_LAYOUT } from '../utils/initialData';
 import { filterLayoutForExport } from '../utils/aabbFilter';
 import { getApiBaseUrl } from '../utils/api';
-import { RefreshCw, CheckCircle2, AlertCircle, Download, Compass, ZoomIn, ZoomOut, RotateCcw, Move, Copy } from 'lucide-react';
+import { RefreshCw, CheckCircle2, AlertCircle, Download, Compass, ZoomIn, ZoomOut, RotateCcw, Move, Copy, Zap, Clock } from 'lucide-react';
 import { getCurrentExportFileName, consumeExportFileName, getCurrentExportBaseName } from '../utils/exportNaming';
 
 const LOCAL_STORAGE_KEY = 'mrsketch_project_layout_v1';
@@ -19,10 +19,19 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
     return INITIAL_LAYOUT;
   });
 
+  const [autoCompile, setAutoCompile] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('mrsketch_auto_compile') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [lastCompiledAt, setLastCompiledAt] = useState<string | null>(null);
+  const [hasPendingChanges, setHasPendingChanges] = useState<boolean>(false);
 
   // Interactive PDF Viewer Controls State
   const [zoomScale, setZoomScale] = useState<number>(1.0);
@@ -65,11 +74,23 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastJsonRef = useRef<string>('');
 
-  const compileLayout = async () => {
+  const toggleAutoCompile = () => {
+    const next = !autoCompile;
+    setAutoCompile(next);
+    try {
+      localStorage.setItem('mrsketch_auto_compile', String(next));
+    } catch {}
+    if (next) {
+      compileLayout();
+    }
+  };
+
+  const compileLayout = async (force: boolean = false) => {
     const exportableLayout = filterLayoutForExport(layout);
     const currentJson = JSON.stringify(exportableLayout);
 
-    if (currentJson === lastJsonRef.current && previewImage) {
+    if (!force && currentJson === lastJsonRef.current && previewImage) {
+      setHasPendingChanges(false);
       return;
     }
 
@@ -100,6 +121,7 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
       setPreviewImage(`data:image/png;base64,${data.image_base64}`);
       setLastCompiledAt(new Date().toLocaleTimeString());
       lastJsonRef.current = currentJson;
+      setHasPendingChanges(false);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       console.error('Compilation Error:', err);
@@ -111,8 +133,43 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
     }
   };
 
+  // Detect pending changes when layout changes in manual mode
   useEffect(() => {
-    compileLayout();
+    const exportableLayout = filterLayoutForExport(layout);
+    const currentJson = JSON.stringify(exportableLayout);
+    if (lastJsonRef.current && currentJson !== lastJsonRef.current) {
+      setHasPendingChanges(true);
+    }
+  }, [layout]);
+
+  // Initial compile or auto-compile debounced sync loop
+  useEffect(() => {
+    if (!lastJsonRef.current) {
+      compileLayout();
+      return;
+    }
+
+    if (!autoCompile) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      compileLayout();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [layout, autoCompile]);
+
+  // Keyboard shortcut Ctrl+Enter / Cmd+Enter to manually trigger render
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        compileLayout(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [layout]);
 
   const [copiedLatex, setCopiedLatex] = useState(false);
@@ -294,21 +351,53 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
             </button>
           </div>
 
+          {/* Render Trigger Button */}
+          <button
+            onClick={() => compileLayout(true)}
+            disabled={isCompiling}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-lg ${
+              hasPendingChanges
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+            } disabled:opacity-50`}
+            title="Compile LaTeX output (Shortcut: Ctrl+Enter)"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>{isCompiling ? 'Rendering...' : 'Render TeX'}</span>
+            <kbd className="hidden sm:inline text-[9px] bg-black/20 px-1 rounded font-mono font-normal">Ctrl+↵</kbd>
+          </button>
+
+          {/* Auto Compile Toggle */}
+          <label className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] text-slate-300 hover:text-slate-100 transition px-2 py-1 rounded-lg bg-slate-800/80 border border-slate-700" title="When ON, auto-compiles on canvas edits. When OFF, renders on demand.">
+            <input
+              type="checkbox"
+              checked={autoCompile}
+              onChange={toggleAutoCompile}
+              className="w-3 h-3 accent-indigo-500 rounded cursor-pointer"
+            />
+            <span>Live Sync</span>
+          </label>
+
           {/* Sync Status Badge */}
           {isCompiling ? (
             <div className="flex items-center gap-1.5 text-xs text-indigo-400 font-mono">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               <span>Compiling...</span>
             </div>
+          ) : hasPendingChanges ? (
+            <div className="flex items-center gap-1.5 text-xs text-amber-400 font-mono" title="Unrendered edits pending">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Pending</span>
+            </div>
           ) : (
             <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Live Synced</span>
+              <span>Synced</span>
             </div>
           )}
 
           {lastCompiledAt && (
-            <span className="text-[10px] text-slate-500 font-mono">
+            <span className="text-[10px] text-slate-500 font-mono hidden md:inline">
               {lastCompiledAt}
             </span>
           )}
@@ -375,7 +464,7 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
         {/* Navigation Helper Indicator */}
         <div className="absolute bottom-4 left-4 z-10 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-3 py-1.5 text-[10px] text-slate-400 flex items-center gap-2 shadow-lg">
           <Move className="w-3 h-3 text-indigo-400" />
-          <span><b>Mouse Wheel</b> Zoom • <b>Middle Click Drag</b> Move Around Viewport</span>
+          <span><b>Mouse Wheel</b> Zoom • <b>Middle Click Drag</b> Move • <b>Ctrl+Enter</b> Render</span>
         </div>
 
         {error ? (
@@ -390,7 +479,7 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
               transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
               transition: isDragging ? 'none' : 'transform 0.15s ease-out',
             }}
-            className="p-4 bg-white rounded-xl shadow-2xl border border-slate-700/80 inline-block max-w-none max-h-none pointer-events-none"
+            className={`p-4 bg-white rounded-xl shadow-2xl border border-slate-700/80 inline-block max-w-none max-h-none pointer-events-none transition-opacity duration-200 ${hasPendingChanges ? 'opacity-80' : 'opacity-100'}`}
           >
             <img
               src={previewImage}
@@ -410,3 +499,4 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
 };
 
 export default StandalonePreview;
+
