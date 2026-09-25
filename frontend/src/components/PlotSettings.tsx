@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PlotOptions } from '../types/schema';
-import { Sliders, Grid, Type, Palette, Eye, Square } from 'lucide-react';
+import { Sliders, Grid, Type, Palette, Eye, Square, MousePointer, Laptop } from 'lucide-react';
 
 interface PlotSettingsProps {
   plotOptions: PlotOptions;
@@ -13,6 +13,56 @@ export const PlotSettings: React.FC<PlotSettingsProps> = ({ plotOptions, onUpdat
       <div className="flex items-center gap-2 pb-3 border-b border-slate-800 text-indigo-400 font-semibold text-sm">
         <Sliders className="w-4 h-4" />
         <span>Matplotlib Figure & PDF Customization</span>
+      </div>
+
+      {/* Input Navigation Mode Settings */}
+      <div className="bg-slate-800/60 p-3.5 rounded-lg border border-slate-700 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+            {(plotOptions.inputMode ?? 'mouse') === 'trackpad' ? (
+              <Laptop className="w-4 h-4 text-indigo-400" />
+            ) : (
+              <MousePointer className="w-4 h-4 text-indigo-400" />
+            )}
+            <span>Canvas Navigation Mode</span>
+          </div>
+          <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-bold">
+            {plotOptions.inputMode ?? 'mouse'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+          <button
+            type="button"
+            onClick={() => onUpdatePlotOptions({ ...plotOptions, inputMode: 'mouse' })}
+            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md font-semibold text-xs transition ${
+              (plotOptions.inputMode ?? 'mouse') === 'mouse'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <MousePointer className="w-3.5 h-3.5" />
+            <span>Mouse Mode</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onUpdatePlotOptions({ ...plotOptions, inputMode: 'trackpad' })}
+            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md font-semibold text-xs transition ${
+              plotOptions.inputMode === 'trackpad'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <Laptop className="w-3.5 h-3.5" />
+            <span>Trackpad Mode</span>
+          </button>
+        </div>
+
+        <p className="text-[11px] text-slate-400 leading-snug">
+          {(plotOptions.inputMode ?? 'mouse') === 'trackpad'
+            ? 'Trackpad: Two-finger swipe to pan, pinch to zoom, and hold-click 0.5s on background + drag to box-select.'
+            : 'Mouse: Mouse wheel to zoom, middle-click drag to pan, right-click drag to box-select.'}
+        </p>
       </div>
 
       {/* Grid Settings */}

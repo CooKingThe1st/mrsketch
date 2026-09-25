@@ -10,7 +10,7 @@ import { StandalonePreview } from './components/StandalonePreview';
 import { ChangelogModal } from './components/ChangelogModal';
 import { TutorialModal } from './components/TutorialModal';
 import { SyncModal } from './components/SyncModal';
-import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid, BookOpen, Cloud } from 'lucide-react';
+import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid, BookOpen, Cloud, MousePointer, Laptop } from 'lucide-react';
 import { isDrawioContent, convertDrawioToProjectLayout } from './utils/drawioImporter';
 import { getApiBaseUrl } from './utils/api';
 
@@ -41,11 +41,15 @@ const saveLayoutSafely = (layoutToSave: ProjectLayout) => {
 };
 
 const getInitialState = (): ProjectLayout => {
+  const savedInputMode = (localStorage.getItem('mrsketch_input_mode') as 'mouse' | 'trackpad') || undefined;
   try {
     const primary = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (primary) {
       const parsed = JSON.parse(primary);
       if (parsed && Array.isArray(parsed.scene) && parsed.exportBounds) {
+        if (savedInputMode && parsed.plotOptions) {
+          parsed.plotOptions.inputMode = savedInputMode;
+        }
         return parsed;
       }
     }
@@ -53,13 +57,18 @@ const getInitialState = (): ProjectLayout => {
     if (backup) {
       const parsed = JSON.parse(backup);
       if (parsed && Array.isArray(parsed.scene) && parsed.exportBounds) {
+        if (savedInputMode && parsed.plotOptions) {
+          parsed.plotOptions.inputMode = savedInputMode;
+        }
         return parsed;
       }
     }
   } catch (e) {
     console.warn('Failed to load layout from localStorage:', e);
   }
-  return INITIAL_LAYOUT;
+  return savedInputMode
+    ? { ...INITIAL_LAYOUT, plotOptions: { ...INITIAL_LAYOUT.plotOptions, inputMode: savedInputMode } }
+    : INITIAL_LAYOUT;
 };
 
 export const computePointFromBinding = (binding: { nodeId: string; pointKey: string }, targetNode: SceneNode): [number, number] | null => {
@@ -1337,6 +1346,9 @@ export function App() {
   };
 
   const handleUpdatePlotOptions = (newOpts: PlotOptions) => {
+    if (newOpts.inputMode) {
+      localStorage.setItem('mrsketch_input_mode', newOpts.inputMode);
+    }
     const currentLayout = layoutRef.current;
     updateLayoutWithHistory({
       ...currentLayout,
@@ -1684,6 +1696,51 @@ export function App() {
 
               {activeMenu === 'settings' && (
                 <div className="absolute left-0 top-full mt-1 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-3 space-y-3 text-xs text-slate-200">
+                  {/* Navigation / Input Mode Toggle */}
+                  <div className="space-y-1.5 pb-2 border-b border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Input Navigation</label>
+                      <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-bold">
+                        {layout.plotOptions.inputMode ?? 'mouse'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleUpdatePlotOptions({ ...layout.plotOptions, inputMode: 'mouse' });
+                        }}
+                        className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-md font-semibold text-xs transition ${
+                          (layout.plotOptions.inputMode ?? 'mouse') === 'mouse'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                        }`}
+                      >
+                        <MousePointer className="w-3.5 h-3.5" />
+                        <span>Mouse</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleUpdatePlotOptions({ ...layout.plotOptions, inputMode: 'trackpad' });
+                        }}
+                        className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-md font-semibold text-xs transition ${
+                          layout.plotOptions.inputMode === 'trackpad'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                        }`}
+                      >
+                        <Laptop className="w-3.5 h-3.5" />
+                        <span>Trackpad</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      {(layout.plotOptions.inputMode ?? 'mouse') === 'trackpad'
+                        ? '2-finger swipe pans, pinch zooms, hold 0.5s + drag to select'
+                        : 'Wheel zooms, middle-drag pans, right-drag to select'}
+                    </p>
+                  </div>
+
                   {/* Grid Resolution */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Grid Snap & Resolution</label>
@@ -2105,6 +2162,7 @@ export function App() {
               onAddTextEntity={handleAddTextEntity}
               onAddPolygonPrimitive={handleAddPolygonPrimitive}
               onDeleteNode={handleDeleteNode}
+              onUpdatePlotOptions={handleUpdatePlotOptions}
             />
           </div>
         </div>

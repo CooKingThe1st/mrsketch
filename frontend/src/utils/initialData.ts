@@ -163,6 +163,7 @@ export const DEFAULT_PLOT_OPTIONS: PlotOptions = {
   labelBoxOpacity: 0.0,
   scaleLabelsWithZoom: true,
   renderMathOnCanvas: true,
+  inputMode: 'mouse',
   cropToContent: false,
   cropPadding: 0.05,
   marginPadding: 0.05,

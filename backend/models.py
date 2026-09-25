@@ -111,6 +111,7 @@ class PlotOptions(BaseModel):
     cropToContent: Optional[bool] = False
     cropPadding: Optional[float] = 0.05
     renderMathOnCanvas: Optional[bool] = True
+    inputMode: Optional[str] = 'mouse'
     activeWorkspaceTab: Optional[str] = 'main_scene'
     showLeftSidebar: Optional[bool] = True
     showRightPanel: Optional[bool] = True

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Stage, Layer, Group, Rect, Circle, Line, Arrow, Text, Tag, Label } from 'react-konva';
 import type { SceneNode, RobotDefinition, ExportBounds, PrimitiveDefinition, PointBinding, PlotOptions, DrawingMode, PendingShapeToAdd, MacroDefinition } from '../types/schema';
-import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight, Trash2, Maximize2 } from 'lucide-react';
+import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight, Trash2, Maximize2, MousePointer, Laptop } from 'lucide-react';
 import { syncBoundNodesForGroup } from '../App';
 import { renderLatexToHtml } from '../utils/latexRenderer';
 import { useMacroParser } from '../hooks/useMacroParser';
@@ -13,6 +13,8 @@ interface CanvasStageProps {
   activeRobotDefId: string | null;
   exportBounds: ExportBounds;
   plotOptions?: PlotOptions;
+  inputMode?: 'mouse' | 'trackpad';
+  onUpdatePlotOptions?: (updated: PlotOptions) => void;
   macros?: Record<string, MacroDefinition>;
   selectedNodeId: string | null;
   selectedNodeIds: string[];
@@ -78,6 +80,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   activeRobotDefId,
   exportBounds,
   plotOptions,
+  inputMode,
+  onUpdatePlotOptions,
   macros,
   selectedNodeId,
   selectedNodeIds,
@@ -211,12 +215,20 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   // Sheet 2 Chain-of-Segments Polygon Drawing State
   const [polyVertices, setPolyVertices] = useState<Array<[number, number]>>([]);
 
-  // Right-click drag-selection state
+  // Right-click & Trackpad drag-selection state
   const [rightDragStart, setRightDragStart] = useState<{ x: number; y: number } | null>(null);
   const [rightDragEnd, setRightDragEnd] = useState<{ x: number; y: number } | null>(null);
   const dragInitialPositions = useRef<Record<string, { x: number; y: number }>>({});
   const lastClickTimeRef = useRef<number>(0);
   const lastClickPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Input Navigation Mode (Mouse vs Trackpad)
+  const effectiveInputMode = inputMode || plotOptions?.inputMode || 'mouse';
+  const isTrackpad = effectiveInputMode === 'trackpad';
+  const trackpadHoldTimerRef = useRef<any>(null);
+  const trackpadHoldPosRef = useRef<{ x: number; y: number } | null>(null);
+  const [isTrackpadBoxSelecting, setIsTrackpadBoxSelecting] = useState<boolean>(false);
+  const justCompletedBoxSelectionRef = useRef<boolean>(false);
 
   const originX = dimensions.width / 2 + panOffset.x;
   const originY = dimensions.height / 2 + panOffset.y;
@@ -427,6 +439,38 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
+    if (isTrackpad) {
+      if (e.evt.ctrlKey) {
+        // Trackpad Pinch-to-Zoom (Browser emits ctrlKey === true during trackpad pinch)
+        const zoomDelta = -e.evt.deltaY * 0.008;
+        const zoomFactor = Math.exp(zoomDelta);
+        const oldScale = scale;
+        const newScale = Math.min(300, Math.max(10, oldScale * zoomFactor));
+        if (Math.abs(newScale - oldScale) < 0.005) return;
+
+        const factor = newScale / oldScale;
+        const currentOriginX = dimensions.width / 2 + panOffset.x;
+        const currentOriginY = dimensions.height / 2 + panOffset.y;
+
+        const newOriginX = pointer.x - (pointer.x - currentOriginX) * factor;
+        const newOriginY = pointer.y - (pointer.y - currentOriginY) * factor;
+
+        setPanOffset({
+          x: newOriginX - dimensions.width / 2,
+          y: newOriginY - dimensions.height / 2,
+        });
+        setScale(newScale);
+      } else {
+        // Trackpad Two-Finger Pan / Swipe
+        setPanOffset((prev) => ({
+          x: prev.x - e.evt.deltaX,
+          y: prev.y - e.evt.deltaY,
+        }));
+      }
+      return;
+    }
+
+    // Standard Mouse Mode: Wheel zooms in/out centered at pointer
     const zoomFactor = e.evt.deltaY < 0 ? 1.15 : 0.85;
     const oldScale = scale;
     const newScale = Math.min(300, Math.max(10, Math.round(oldScale * zoomFactor)));
@@ -871,6 +915,27 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       setQuickMenuPos(null);
     }
 
+    // Trackpad Mode: Press-and-hold (500ms) on empty canvas to arm box selection
+    if (isTrackpad && e.evt.button === 0 && drawingMode === 'select') {
+      const stage = e.target.getStage();
+      const targetName = typeof e.target.name === 'function' ? e.target.name() : (e.target.name || '');
+      const isEmptyCanvas = e.target === stage || targetName === 'bg_rect' || targetName === 'grid_layer';
+      if (isEmptyCanvas) {
+        const pointer = stage?.getPointerPosition();
+        if (pointer) {
+          trackpadHoldPosRef.current = { x: pointer.x, y: pointer.y };
+          if (trackpadHoldTimerRef.current) {
+            clearTimeout(trackpadHoldTimerRef.current);
+          }
+          trackpadHoldTimerRef.current = setTimeout(() => {
+            setIsTrackpadBoxSelecting(true);
+            setRightDragStart({ x: pointer.x, y: pointer.y });
+            setRightDragEnd({ x: pointer.x, y: pointer.y });
+          }, 500);
+        }
+      }
+    }
+
     // Middle-click (button === 1) to pan canvas view
     if (e.evt.button === 1) {
       e.evt.preventDefault();
@@ -944,6 +1009,15 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     const stage = e.target.getStage();
     const pointerPos = stage?.getPointerPosition();
     if (!pointerPos) return;
+
+    // Trackpad mode: cancel hold-drag timer if moved before 500ms has elapsed
+    if (trackpadHoldTimerRef.current && trackpadHoldPosRef.current) {
+      const dist = Math.hypot(pointerPos.x - trackpadHoldPosRef.current.x, pointerPos.y - trackpadHoldPosRef.current.y);
+      if (dist > 8) {
+        clearTimeout(trackpadHoldTimerRef.current);
+        trackpadHoldTimerRef.current = null;
+      }
+    }
 
     if (rightDragStart) {
       setRightDragEnd({ x: pointerPos.x, y: pointerPos.y });
@@ -1033,12 +1107,18 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     if (e.evt.button === 1 || isPanning) {
       setIsPanning(false);
     }
-    if (e.evt.button === 2 && rightDragStart && rightDragEnd) {
-      e.evt.preventDefault();
-      const x1 = Math.min(rightDragStart.x, rightDragEnd.x);
-      const y1 = Math.min(rightDragStart.y, rightDragEnd.y);
-      const x2 = Math.max(rightDragStart.x, rightDragEnd.x);
-      const y2 = Math.max(rightDragStart.y, rightDragEnd.y);
+
+    // Cancel pending trackpad hold timer if mouse up occurs
+    if (trackpadHoldTimerRef.current) {
+      clearTimeout(trackpadHoldTimerRef.current);
+      trackpadHoldTimerRef.current = null;
+    }
+
+    const applyBoxSelection = (startX: number, startY: number, endX: number, endY: number) => {
+      const x1 = Math.min(startX, endX);
+      const y1 = Math.min(startY, endY);
+      const x2 = Math.max(startX, endX);
+      const y2 = Math.max(startY, endY);
 
       // Only perform selection if the box is non-trivial to prevent click-clears
       const boxSize = Math.max(x2 - x1, y2 - y1);
@@ -1076,6 +1156,22 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           }
         }
       }
+    };
+
+    if (e.evt.button === 2 && rightDragStart && rightDragEnd) {
+      e.evt.preventDefault();
+      applyBoxSelection(rightDragStart.x, rightDragStart.y, rightDragEnd.x, rightDragEnd.y);
+      setRightDragStart(null);
+      setRightDragEnd(null);
+    } else if (isTrackpadBoxSelecting) {
+      if (rightDragStart && rightDragEnd) {
+        applyBoxSelection(rightDragStart.x, rightDragStart.y, rightDragEnd.x, rightDragEnd.y);
+        justCompletedBoxSelectionRef.current = true;
+        setTimeout(() => {
+          justCompletedBoxSelectionRef.current = false;
+        }, 120);
+      }
+      setIsTrackpadBoxSelecting(false);
       setRightDragStart(null);
       setRightDragEnd(null);
     }
@@ -1239,8 +1335,13 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       return;
     }
 
-    const clickedOnEmpty = e.target === e.target.getStage() || e.target.name() === 'bg_rect';
+    const targetName = typeof e.target.name === 'function' ? e.target.name() : (e.target.name || '');
+    const clickedOnEmpty = e.target === e.target.getStage() || targetName === 'bg_rect' || targetName === 'grid_layer';
     if (clickedOnEmpty) {
+      if (justCompletedBoxSelectionRef.current) {
+        justCompletedBoxSelectionRef.current = false;
+        return;
+      }
       onSelectNode(null);
       onSelectPrimitive(null);
     }
@@ -4275,7 +4376,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   return (
     <div
       className="relative w-full h-full overflow-hidden select-none transition-colors"
-      style={{ backgroundColor: bgColor }}
+      style={{ backgroundColor: bgColor, touchAction: 'none' }}
       ref={containerRef}
       onContextMenu={(e) => e.preventDefault()}
     >
@@ -4314,6 +4415,33 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           title="Reset Camera to (0,0) at baseline 40 px/unit"
         >
           Recenter
+        </button>
+
+        <div className="h-4 w-px bg-slate-700/80 mx-0.5" />
+
+        {/* Input Navigation Mode Quick Toggle */}
+        <button
+          type="button"
+          onClick={() => {
+            const nextMode = isTrackpad ? 'mouse' : 'trackpad';
+            if (onUpdatePlotOptions && plotOptions) {
+              onUpdatePlotOptions({ ...plotOptions, inputMode: nextMode });
+            }
+            localStorage.setItem('mrsketch_input_mode', nextMode);
+          }}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold transition shadow ${
+            isTrackpad
+              ? 'bg-purple-600 hover:bg-purple-500 text-white'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+          }`}
+          title={
+            isTrackpad
+              ? 'Trackpad Mode active (2-finger swipe pans, pinch zooms, hold 0.5s + drag to select). Click to switch to Mouse Mode.'
+              : 'Mouse Mode active (Wheel zooms, middle-click pans, right-click drag selects). Click to switch to Trackpad Mode.'
+          }
+        >
+          {isTrackpad ? <Laptop className="w-3.5 h-3.5 text-purple-200" /> : <MousePointer className="w-3.5 h-3.5 text-indigo-300" />}
+          <span>{isTrackpad ? 'Trackpad' : 'Mouse'}</span>
         </button>
 
         {/* Canvas Grid Switcher */}
@@ -5516,6 +5644,15 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                   dash={[4, 4]}
                 />
               )}
+              {isTrackpadBoxSelecting && rightDragStart && rightDragEnd && Math.hypot(rightDragEnd.x - rightDragStart.x, rightDragEnd.y - rightDragStart.y) <= 5 && (
+                <Group x={rightDragStart.x} y={rightDragStart.y}>
+                  <Circle radius={10} stroke="#a855f7" strokeWidth={2} dash={[3, 3]} />
+                  <Label y={-24}>
+                    <Tag fill="#1e1b4b" stroke="#818cf8" strokeWidth={1} cornerRadius={4} pointerDirection="down" pointerWidth={6} pointerHeight={4} />
+                    <Text text="Drag to Select" fontSize={11} fill="#e0e7ff" padding={4} />
+                  </Label>
+                </Group>
+              )}
             </>
           ) : (
             <>
@@ -5531,6 +5668,15 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                   strokeWidth={1}
                   dash={[4, 4]}
                 />
+              )}
+              {isTrackpadBoxSelecting && rightDragStart && rightDragEnd && Math.hypot(rightDragEnd.x - rightDragStart.x, rightDragEnd.y - rightDragStart.y) <= 5 && (
+                <Group x={rightDragStart.x} y={rightDragStart.y}>
+                  <Circle radius={10} stroke="#ec4899" strokeWidth={2} dash={[3, 3]} />
+                  <Label y={-24}>
+                    <Tag fill="#1e1b4b" stroke="#f472b6" strokeWidth={1} cornerRadius={4} pointerDirection="down" pointerWidth={6} pointerHeight={4} />
+                    <Text text="Drag to Select" fontSize={11} fill="#e0e7ff" padding={4} />
+                  </Label>
+                </Group>
               )}
             </>
           )}
