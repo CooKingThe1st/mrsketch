@@ -124,13 +124,19 @@ export function expandLatexMacros(rawLabel: string, macros?: Record<string, Macr
   return text.replaceAll('\\bm{', '\\mathbf{').replaceAll('\\boldsymbol{', '\\mathbf{');
 }
 
+const fullRenderCache = new Map<string, string>();
+
 export function renderLatexToHtml(rawLabel: string, macros?: Record<string, MacroDefinition>): string {
   if (!rawLabel) return '';
+
+  const cacheKey = macros ? `${rawLabel}__${Object.keys(macros).length}` : rawLabel;
+  const cached = fullRenderCache.get(cacheKey);
+  if (cached !== undefined) return cached;
 
   const expandedText = expandLatexMacros(rawLabel, macros);
 
   const lines = expandedText.split('\n');
-  return lines
+  const result = lines
     .map((line) => {
       const trimmed = line.trim();
       if (!trimmed) return '<div class="katex-line" style="line-height: 1.15; height: 1em;"></div>';
@@ -184,4 +190,9 @@ export function renderLatexToHtml(rawLabel: string, macros?: Record<string, Macr
       return `<div class="katex-line" style="line-height: 1.15; margin: 0; padding: 0;">${lineHtml}</div>`;
     })
     .join('');
+
+  if (fullRenderCache.size > 2000) fullRenderCache.clear();
+  fullRenderCache.set(cacheKey, result);
+  return result;
 }
+

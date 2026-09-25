@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Stage, Layer, Group, Rect, Circle, Line, Arrow, Text, Tag, Label } from 'react-konva';
 import type { SceneNode, RobotDefinition, ExportBounds, PrimitiveDefinition, PointBinding, PlotOptions, DrawingMode, PendingShapeToAdd, MacroDefinition } from '../types/schema';
 import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight, Trash2, Maximize2 } from 'lucide-react';
@@ -251,6 +251,68 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     }
     return (originY - py) / scale;
   };
+
+  // Viewport Culling / Frustum Virtualization Bounds
+  const viewportMargin = Math.max(4, 250 / Math.max(1, scale));
+  const minViewportSciX = Math.min(toSciX(0), toSciX(dimensions.width)) - viewportMargin;
+  const maxViewportSciX = Math.max(toSciX(0), toSciX(dimensions.width)) + viewportMargin;
+  const minViewportSciY = Math.min(toSciY(0), toSciY(dimensions.height)) - viewportMargin;
+  const maxViewportSciY = Math.max(toSciY(0), toSciY(dimensions.height)) + viewportMargin;
+
+  const isNodeInViewport = useCallback((node: SceneNode): boolean => {
+    // Always render selected nodes or nodes in active multi-selection
+    if (selectedNodeIds.includes(node.id) || node.id === selectedNodeId) {
+      return true;
+    }
+
+    if (node.type === 'vector' || node.type === 'line' || node.type === 'super_vector' || node.type === 'super_line') {
+      const pts = node.points || [0, 0, 3, 2];
+      const xs = [node.x + pts[0], node.x + pts[2]];
+      const ys = [node.y + pts[1], node.y + pts[3]];
+      if (node.controlPoint) {
+        xs.push(node.x + node.controlPoint[0]);
+        ys.push(node.y + node.controlPoint[1]);
+      }
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      return maxX >= minViewportSciX && minX <= maxViewportSciX && maxY >= minViewportSciY && minY <= maxViewportSciY;
+    }
+
+    if (node.type === 'mega_vector' || node.type === 'mega_line') {
+      const pts = node.points || [0, 0, 3, 2];
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (let i = 0; i < pts.length - 1; i += 2) {
+        const px = node.x + pts[i];
+        const py = node.y + pts[i + 1];
+        if (px < minX) minX = px;
+        if (px > maxX) maxX = px;
+        if (py < minY) minY = py;
+        if (py > maxY) maxY = py;
+      }
+      return maxX >= minViewportSciX && minX <= maxViewportSciX && maxY >= minViewportSciY && minY <= maxViewportSciY;
+    }
+
+    const nodeScale = node.scale || 1.0;
+    const w = (node.width ?? (node.radius ? node.radius * 2 : 4)) * nodeScale;
+    const h = (node.height ?? (node.radius ? node.radius * 2 : 4)) * nodeScale;
+    const span = Math.max(w, h, 2) * 1.5;
+    const minX = node.x - span;
+    const maxX = node.x + span;
+    const minY = node.y - span;
+    const maxY = node.y + span;
+
+    return maxX >= minViewportSciX && minX <= maxViewportSciX && maxY >= minViewportSciY && minY <= maxViewportSciY;
+  }, [minViewportSciX, maxViewportSciX, minViewportSciY, maxViewportSciY, selectedNodeId, selectedNodeIds]);
+
+  const visibleScene = useMemo(() => {
+    if (scene.length <= 40) return scene;
+    return scene.filter(isNodeInViewport);
+  }, [scene, isNodeInViewport]);
 
   const snapTo45Degrees = (x1: number, y1: number, x2: number, y2: number) => {
     const dx = x2 - x1;
@@ -525,12 +587,22 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     };
   }, [editingLabelNodeId, scene, onDeleteNode, onUpdateNode]);
 
-  // Helper to compute all special guidance snap points for shapes in scientific coordinates
-  const getGuidanceSnapPoints = (): Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> => {
+  // Helper to compute all special guidance snap points for shapes in scientific coordinates (with spatial pruning)
+  const getGuidanceSnapPoints = (nearSciX?: number, nearSciY?: number): Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> => {
     if (mode === 'robot_designer') return [];
     const points: Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> = [];
+    const snapMargin = nearSciX !== undefined ? Math.max(2.5, 32 / scale) : undefined;
 
     scene.forEach((node) => {
+      if (nearSciX !== undefined && nearSciY !== undefined && snapMargin !== undefined) {
+        const nodeWidth = Math.max(node.width || 0, (node.radius || 0) * 2, 4);
+        const nodeHeight = Math.max(node.height || 0, (node.radius || 0) * 2, 4);
+        const maxSpan = Math.max(nodeWidth, nodeHeight) * (node.scale || 1) + snapMargin;
+        if (Math.abs(node.x - nearSciX) > maxSpan || Math.abs(node.y - nearSciY) > maxSpan) {
+          return;
+        }
+      }
+
       const rad = ((node.rotation || 0) * Math.PI) / 180;
       const cosR = Math.cos(rad);
       const sinR = Math.sin(rad);
@@ -618,13 +690,28 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   // Helper to compute soft guidance snap points from lines and vectors (unlinked, coincidence snap)
   const getLineVectorGuidancePoints = (
     excludeNodeId?: string,
-    excludePoint?: [number, number]
+    excludePoint?: [number, number],
+    nearSciX?: number,
+    nearSciY?: number
   ): Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> => {
     if (mode === 'robot_designer') return [];
     const points: Array<{ sciX: number; sciY: number; nodeId: string; pointKey: string }> = [];
+    const snapMargin = nearSciX !== undefined ? Math.max(2.5, 32 / scale) : undefined;
 
     scene.forEach((node) => {
       if (excludeNodeId && node.id === excludeNodeId) return;
+
+      if (nearSciX !== undefined && nearSciY !== undefined && snapMargin !== undefined) {
+        const pts = node.points || [0, 0, 3, 2];
+        const minX = node.x + Math.min(pts[0], pts[2]) - snapMargin;
+        const maxX = node.x + Math.max(pts[0], pts[2]) + snapMargin;
+        const minY = node.y + Math.min(pts[1], pts[3]) - snapMargin;
+        const maxY = node.y + Math.max(pts[1], pts[3]) + snapMargin;
+        if (nearSciX < minX || nearSciX > maxX || nearSciY < minY || nearSciY > maxY) {
+          return;
+        }
+      }
+
       const rad = ((node.rotation || 0) * Math.PI) / 180;
       const cosR = Math.cos(rad);
       const sinR = Math.sin(rad);
@@ -684,8 +771,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       return { sciX: Math.round(rawSciX * 100) / 100, sciY: Math.round(rawSciY * 100) / 100, isSnapped: false };
     }
 
-    // PRIORITY 1: Shape Hard Snap Link (Creates binding, Red Indicator)
-    const shapeSnapPoints = getGuidanceSnapPoints();
+    // PRIORITY 1: Shape Hard Snap Link (Creates binding, Red Indicator with spatial filter)
+    const shapeSnapPoints = getGuidanceSnapPoints(rawSciX, rawSciY);
     let minShapeDistance = Infinity;
     let bestShapeSnapPoint: { sciX: number; sciY: number; nodeId: string; pointKey: string } | null = null;
 
@@ -713,8 +800,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       };
     }
 
-    // PRIORITY 2: Line / Vector Soft Guidance Snap (Unlinked coincidence snap, Yellow Indicator)
-    const lineSnapPoints = getLineVectorGuidancePoints(excludeNodeId, excludePoint);
+    // PRIORITY 2: Line / Vector Soft Guidance Snap (Unlinked coincidence snap with spatial filter)
+    const lineSnapPoints = getLineVectorGuidancePoints(excludeNodeId, excludePoint, rawSciX, rawSciY);
     let minLineDistance = Infinity;
     let bestLineSnapPoint: { sciX: number; sciY: number; nodeId: string; pointKey: string } | null = null;
 
@@ -2644,7 +2731,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
     if (node.type === 'alias' && node.definitionId && definitions[node.definitionId]) {
       const def = definitions[node.definitionId];
-      nodeContent = renderRobotPrimitives(def, node.style, nodeScale);
+      nodeContent = <Group listening={false}>{renderRobotPrimitives(def, node.style, nodeScale)}</Group>;
     } else if (node.type === 'obstacle' || node.type === 'rect') {
       const w = (node.width || 2) * scale * nodeScale;
       const h = (node.height || 2) * scale * nodeScale;
@@ -5375,7 +5462,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         onMouseLeave={() => setActiveSnapPreview(null)}
         onClick={handleStageClick}
       >
-        <Layer>
+        {/* Layer 1: Static Background & Coordinate Grid (Never redraws on shape move/hover/snap) */}
+        <Layer id="bg_grid_layer" listening={false}>
           <Rect
             name="bg_rect"
             x={0}
@@ -5384,22 +5472,33 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             height={dimensions.height}
             fill={bgColor}
           />
-
           {renderGrid()}
+        </Layer>
 
+        {/* Layer 2: Main Content Layer (Only renders visible/frustum-culled shapes) */}
+        <Layer id="main_content_layer">
           {mode === 'main_scene' ? (
             <>
               {renderExportBounds()}
-              {/* Base Layer: Unselected scene node bodies in natural layer stack order */}
-              {scene
+              {/* Base Layer: Unselected visible scene node bodies in natural layer stack order */}
+              {visibleScene
                 .filter((node) => !selectedNodeIds.includes(node.id) && node.id !== selectedNodeId)
                 .map((node) => renderSceneNode(node, 'body'))}
 
               {/* Focused/Selected scene node bodies rendered on top of unselected nodes */}
-              {scene
+              {visibleScene
                 .filter((node) => selectedNodeIds.includes(node.id) || node.id === selectedNodeId)
                 .map((node) => renderSceneNode(node, 'body'))}
+            </>
+          ) : (
+            renderRobotDesignerPrimitives()
+          )}
+        </Layer>
 
+        {/* Layer 3: Interactive UI, Handles, Snap Previews & Drawing Overlays */}
+        <Layer id="overlay_interaction_layer">
+          {mode === 'main_scene' ? (
+            <>
               {/* Top Overlay Layer: Selection handles & guidance points of focused/selected node on very top */}
               {scene
                 .filter((node) => selectedNodeIds.includes(node.id) || node.id === selectedNodeId)
@@ -5420,7 +5519,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             </>
           ) : (
             <>
-              {renderRobotDesignerPrimitives()}
               {renderInteractiveDrawingPreview()}
               {rightDragStart && rightDragEnd && (
                 <Rect
@@ -5452,10 +5550,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         </Layer>
       </Stage>
 
-      {/* KaTeX Live Math Mode HTML Overlay */}
+      {/* KaTeX Live Math Mode HTML Overlay (Only render DOM nodes for visible viewport elements) */}
       {mode === 'main_scene' && (plotOptions?.renderMathOnCanvas ?? true) && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10">
-          {scene
+          {visibleScene
             .filter((node) => node.label && node.label.trim())
             .map((node) => {
               const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle' || node.type === 'text' || node.type === 'alias';
