@@ -1502,22 +1502,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const currentSciX = toSciX(e.target.x());
-            const currentSciY = toSciY(e.target.y());
-            const dx = currentSciX - exportBounds.xMin;
-            const dy = currentSciY - exportBounds.yMax;
-            if (Math.abs(dx) >= 0.1 || Math.abs(dy) >= 0.1) {
-              const w = exportBounds.xMax - exportBounds.xMin;
-              const h = exportBounds.yMax - exportBounds.yMin;
-              const newXMin = Math.round((exportBounds.xMin + dx) * 10) / 10;
-              const newYMax = Math.round((exportBounds.yMax + dy) * 10) / 10;
-              onUpdateExportBounds({
-                xMin: newXMin,
-                xMax: Math.round((newXMin + w) * 10) / 10,
-                yMin: Math.round((newYMax - h) * 10) / 10,
-                yMax: newYMax,
-              });
-            }
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
@@ -1574,15 +1558,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
-                const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
-                if (newXMin !== exportBounds.xMin || newYMax !== exportBounds.yMax) {
-                  onUpdateExportBounds({
-                    ...exportBounds,
-                    xMin: Math.min(newXMin, exportBounds.xMax - 1),
-                    yMax: Math.max(newYMax, exportBounds.yMin + 1),
-                  });
-                }
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
@@ -1616,15 +1591,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
-                const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
-                if (newXMax !== exportBounds.xMax || newYMax !== exportBounds.yMax) {
-                  onUpdateExportBounds({
-                    ...exportBounds,
-                    xMax: Math.max(newXMax, exportBounds.xMin + 1),
-                    yMax: Math.max(newYMax, exportBounds.yMin + 1),
-                  });
-                }
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
@@ -1658,15 +1624,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
-                const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
-                if (newXMin !== exportBounds.xMin || newYMin !== exportBounds.yMin) {
-                  onUpdateExportBounds({
-                    ...exportBounds,
-                    xMin: Math.min(newXMin, exportBounds.xMax - 1),
-                    yMin: Math.min(newYMin, exportBounds.yMax - 1),
-                  });
-                }
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
@@ -1700,15 +1657,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
-                const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
-                if (newXMax !== exportBounds.xMax || newYMin !== exportBounds.yMin) {
-                  onUpdateExportBounds({
-                    ...exportBounds,
-                    xMax: Math.max(newXMax, exportBounds.xMin + 1),
-                    yMin: Math.min(newYMin, exportBounds.yMax - 1),
-                  });
-                }
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
@@ -2142,17 +2090,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                       } else {
                         setActiveSnapPreview(null);
                       }
-
-                      let targetSciX = snap.isSnapped ? snap.sciX : toSciX(absPos.x);
-                      let targetSciY = snap.isSnapped ? snap.sciY : toSciY(absPos.y);
-
-                      let newDx = Math.round((targetSciX - node.x) * 10) / 10;
-                      let newDy = Math.round((targetSciY - node.y) * 10) / 10;
-
-                      onUpdateNode({
-                        ...node,
-                        points: [pts[0], pts[1], newDx, newDy],
-                      });
                     }}
                     onDragEnd={(e) => {
                       e.cancelBubble = true;

@@ -4,6 +4,7 @@ import { filterLayoutForExport } from '../utils/aabbFilter';
 import { getApiBaseUrl } from '../utils/api';
 import { RefreshCw, Download, FileCode, CheckCircle2, AlertCircle, ExternalLink, Copy, Zap, Clock } from 'lucide-react';
 import { getCurrentExportFileName, consumeExportFileName, getCurrentExportBaseName } from '../utils/exportNaming';
+import { ClientVectorPreview } from './ClientVectorPreview';
 
 interface LivePreviewProps {
   layout: ProjectLayout;
@@ -22,6 +23,21 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     }
   });
 
+  const [previewEngine, setPreviewEngine] = useState<'client' | 'matplotlib'>(() => {
+    try {
+      return (localStorage.getItem('mrsketch_preview_engine') as 'client' | 'matplotlib') || 'client';
+    } catch {
+      return 'client';
+    }
+  });
+
+  const switchPreviewEngine = (engine: 'client' | 'matplotlib') => {
+    setPreviewEngine(engine);
+    try {
+      localStorage.setItem('mrsketch_preview_engine', engine);
+    } catch {}
+  };
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +47,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastJsonRef = useRef<string>('');
+  const pendingTimerRef = useRef<any>(null);
 
   const toggleAutoCompile = () => {
     const next = !autoCompile;
@@ -97,13 +114,19 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     }
   };
 
-  // Detect pending changes when layout changes in manual mode
+  // Detect pending changes when layout changes in manual mode (debounced to avoid locking UI thread)
   useEffect(() => {
-    const exportableLayout = filterLayoutForExport(layout);
-    const currentJson = JSON.stringify(exportableLayout);
-    if (lastJsonRef.current && currentJson !== lastJsonRef.current) {
-      setHasPendingChanges(true);
-    }
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = setTimeout(() => {
+      const exportableLayout = filterLayoutForExport(layout);
+      const currentJson = JSON.stringify(exportableLayout);
+      if (lastJsonRef.current && currentJson !== lastJsonRef.current) {
+        setHasPendingChanges(true);
+      }
+    }, 300);
+    return () => {
+      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    };
   }, [layout]);
 
   // Initial compile or auto-compile debounced sync loop
@@ -258,7 +281,40 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2">
-            {lastCompiledAt && (
+            {/* Engine Switcher */}
+            <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-700/80 text-[11px]">
+              <button
+                type="button"
+                onClick={() => switchPreviewEngine('client')}
+                className={`px-2 py-0.5 rounded font-semibold transition flex items-center gap-1 ${
+                  previewEngine === 'client'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Instant Client Vector Preview: 0ms latency, zero server connection, updates live as you draw"
+              >
+                <Zap className="w-3 h-3 text-amber-300" />
+                <span>Instant SVG</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  switchPreviewEngine('matplotlib');
+                  if (!previewImage) compileLayout(true);
+                }}
+                className={`px-2 py-0.5 rounded font-semibold transition flex items-center gap-1 ${
+                  previewEngine === 'matplotlib'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Python Matplotlib Server Engine: High-precision pdflatex raster output from host"
+              >
+                <FileCode className="w-3 h-3 text-emerald-400" />
+                <span>Matplotlib</span>
+              </button>
+            </div>
+
+            {lastCompiledAt && previewEngine === 'matplotlib' && (
               <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">Updated: {lastCompiledAt}</span>
             )}
 
@@ -352,8 +408,10 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
       </div>
 
       {/* Main Preview Display */}
-      <div className="flex-1 p-4 bg-slate-950 flex items-center justify-center relative overflow-hidden">
-        {error ? (
+      <div className="flex-1 bg-slate-950 flex items-center justify-center relative overflow-hidden">
+        {previewEngine === 'client' ? (
+          <ClientVectorPreview layout={layout} />
+        ) : error ? (
           <div className="flex flex-col items-center gap-2 text-red-400 p-4 max-w-sm text-center bg-red-950/30 border border-red-900/50 rounded-xl">
             <AlertCircle className="w-8 h-8" />
             <span className="text-xs font-semibold">LaTeX Compilation Error</span>

@@ -17,27 +17,53 @@ import { getApiBaseUrl } from './utils/api';
 const LOCAL_STORAGE_KEY = 'mrsketch_project_layout_v1';
 const isLocalDev = typeof window !== 'undefined' && (window.location.port === '5173' || window.location.port === '3000');
 
-let backupSaveDebounceTimer: any = null;
-const saveLayoutSafely = (layoutToSave: ProjectLayout) => {
-  if (!layoutToSave || !Array.isArray(layoutToSave.scene) || !layoutToSave.exportBounds) return;
+let storageSaveDebounceTimer: any = null;
+let lastLayoutToSave: ProjectLayout | null = null;
+
+const flushSaveLayout = () => {
+  if (!lastLayoutToSave) return;
   try {
-    const jsonStr = JSON.stringify(layoutToSave);
+    const jsonStr = JSON.stringify(lastLayoutToSave);
     localStorage.setItem(LOCAL_STORAGE_KEY, jsonStr);
     localStorage.setItem('mrsketch_project_layout_backup_v1', jsonStr);
-    // In local dev only, also persist backup to disk file
-    if (isLocalDev) {
-      if (backupSaveDebounceTimer) clearTimeout(backupSaveDebounceTimer);
-      backupSaveDebounceTimer = setTimeout(() => {
-        fetch(`${getApiBaseUrl()}/api/backup-save`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: jsonStr,
-        }).catch(() => {});
-      }, 400);
-    }
   } catch (e) {
-    console.warn('Safe layout save failed:', e);
+    console.warn('Flush layout save failed:', e);
   }
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushSaveLayout);
+}
+
+const saveLayoutSafely = (layoutToSave: ProjectLayout) => {
+  if (!layoutToSave || !Array.isArray(layoutToSave.scene) || !layoutToSave.exportBounds) return;
+  lastLayoutToSave = layoutToSave;
+
+  if (storageSaveDebounceTimer) clearTimeout(storageSaveDebounceTimer);
+  storageSaveDebounceTimer = setTimeout(() => {
+    const scheduleIdle =
+      (typeof window !== 'undefined' && (window as any).requestIdleCallback) ||
+      ((cb: () => void) => setTimeout(cb, 1));
+
+    scheduleIdle(() => {
+      try {
+        const jsonStr = JSON.stringify(layoutToSave);
+        localStorage.setItem(LOCAL_STORAGE_KEY, jsonStr);
+        localStorage.setItem('mrsketch_project_layout_backup_v1', jsonStr);
+
+        // In local dev only, also persist backup to disk file
+        if (isLocalDev) {
+          fetch(`${getApiBaseUrl()}/api/backup-save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: jsonStr,
+          }).catch(() => {});
+        }
+      } catch (e) {
+        console.warn('Safe layout save failed:', e);
+      }
+    });
+  }, 350);
 };
 
 const getInitialState = (): ProjectLayout => {

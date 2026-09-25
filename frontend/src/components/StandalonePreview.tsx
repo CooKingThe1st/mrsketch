@@ -3,8 +3,9 @@ import type { ProjectLayout } from '../types/schema';
 import { INITIAL_LAYOUT } from '../utils/initialData';
 import { filterLayoutForExport } from '../utils/aabbFilter';
 import { getApiBaseUrl } from '../utils/api';
-import { RefreshCw, CheckCircle2, AlertCircle, Download, Compass, ZoomIn, ZoomOut, RotateCcw, Move, Copy, Zap, Clock } from 'lucide-react';
+import { RefreshCw, CheckCircle2, AlertCircle, Download, Compass, ZoomIn, ZoomOut, RotateCcw, Move, Copy, Zap, Clock, FileCode } from 'lucide-react';
 import { getCurrentExportFileName, consumeExportFileName, getCurrentExportBaseName } from '../utils/exportNaming';
+import { ClientVectorPreview } from './ClientVectorPreview';
 
 const LOCAL_STORAGE_KEY = 'mrsketch_project_layout_v1';
 
@@ -26,6 +27,24 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
       return false;
     }
   });
+
+  const [previewEngine, setPreviewEngine] = useState<'client' | 'matplotlib'>(() => {
+    try {
+      return (localStorage.getItem('mrsketch_preview_engine') as 'client' | 'matplotlib') || 'client';
+    } catch {
+      return 'client';
+    }
+  });
+
+  const switchPreviewEngine = (engine: 'client' | 'matplotlib') => {
+    setPreviewEngine(engine);
+    try {
+      localStorage.setItem('mrsketch_preview_engine', engine);
+    } catch {}
+    if (engine === 'matplotlib' && !previewImage) {
+      compileLayout(true);
+    }
+  };
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
@@ -54,6 +73,9 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
           const parsed = JSON.parse(e.newValue);
           setLayout(parsed);
         } catch (err) {}
+      }
+      if (e.key === 'mrsketch_preview_engine' && (e.newValue === 'client' || e.newValue === 'matplotlib')) {
+        setPreviewEngine(e.newValue);
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -133,23 +155,33 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
     }
   };
 
+  const pendingTimerRef = useRef<any>(null);
+
   // Detect pending changes when layout changes in manual mode
   useEffect(() => {
-    const exportableLayout = filterLayoutForExport(layout);
-    const currentJson = JSON.stringify(exportableLayout);
-    if (lastJsonRef.current && currentJson !== lastJsonRef.current) {
-      setHasPendingChanges(true);
-    }
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = setTimeout(() => {
+      const exportableLayout = filterLayoutForExport(layout);
+      const currentJson = JSON.stringify(exportableLayout);
+      if (lastJsonRef.current && currentJson !== lastJsonRef.current) {
+        setHasPendingChanges(true);
+      }
+    }, 300);
+    return () => {
+      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    };
   }, [layout]);
 
   // Initial compile or auto-compile debounced sync loop
   useEffect(() => {
     if (!lastJsonRef.current) {
-      compileLayout();
+      if (previewEngine === 'matplotlib') {
+        compileLayout();
+      }
       return;
     }
 
-    if (!autoCompile) {
+    if (!autoCompile || previewEngine !== 'matplotlib') {
       return;
     }
 
@@ -158,7 +190,7 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [layout, autoCompile]);
+  }, [layout, autoCompile, previewEngine]);
 
   // Keyboard shortcut Ctrl+Enter / Cmd+Enter to manually trigger render
   useEffect(() => {
@@ -323,6 +355,36 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
 
         {/* Viewer Zoom & Action Controls */}
         <div className="flex items-center gap-3">
+          {/* Engine Switcher */}
+          <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-700/80 text-[11px]">
+            <button
+              type="button"
+              onClick={() => switchPreviewEngine('client')}
+              className={`px-2 py-0.5 rounded font-semibold transition flex items-center gap-1 ${
+                previewEngine === 'client'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Instant Client Vector Preview: 0ms latency, zero server connection, updates live as you draw"
+            >
+              <Zap className="w-3 h-3 text-amber-300" />
+              <span>Instant SVG</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => switchPreviewEngine('matplotlib')}
+              className={`px-2 py-0.5 rounded font-semibold transition flex items-center gap-1 ${
+                previewEngine === 'matplotlib'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Python Matplotlib Server Engine: High-precision pdflatex raster output from host"
+            >
+              <FileCode className="w-3 h-3 text-emerald-400" />
+              <span>Matplotlib</span>
+            </button>
+          </div>
+
           {/* Zoom Buttons */}
           <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
             <button
@@ -467,7 +529,17 @@ export const StandalonePreview: React.FC<{ backendUrl?: string }> = ({
           <span><b>Mouse Wheel</b> Zoom • <b>Middle Click Drag</b> Move • <b>Ctrl+Enter</b> Render</span>
         </div>
 
-        {error ? (
+        {previewEngine === 'client' ? (
+          <div
+            style={{
+              transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
+              transition: isDragging ? 'none' : 'transform 0.15s ease-out',
+            }}
+            className="p-4 bg-white rounded-xl shadow-2xl border border-slate-700/80 inline-block max-w-none max-h-none select-none transition-opacity duration-200"
+          >
+            <ClientVectorPreview layout={layout} bareSvg className="block rounded max-w-[85vw] max-h-[85vh] object-contain shadow pointer-events-none" />
+          </div>
+        ) : error ? (
           <div className="flex flex-col items-center gap-3 text-red-400 p-6 max-w-md text-center bg-red-950/40 border border-red-900/60 rounded-2xl shadow-2xl z-10">
             <AlertCircle className="w-10 h-10" />
             <span className="text-sm font-bold">LaTeX Compilation Error</span>
