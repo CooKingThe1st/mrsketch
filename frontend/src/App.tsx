@@ -10,7 +10,7 @@ import { StandalonePreview } from './components/StandalonePreview';
 import { ChangelogModal } from './components/ChangelogModal';
 import { TutorialModal } from './components/TutorialModal';
 import { SyncModal } from './components/SyncModal';
-import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid, BookOpen, Cloud, MousePointer, Laptop } from 'lucide-react';
+import { Compass, Code2, Eye, RotateCcw, Sliders, Download, Upload, Check, Sparkles, ChevronDown, PanelLeft, PanelRight, Grid, BookOpen, Cloud, MousePointer, Laptop, Zap } from 'lucide-react';
 import { isDrawioContent, convertDrawioToProjectLayout } from './utils/drawioImporter';
 import { getApiBaseUrl } from './utils/api';
 
@@ -1765,6 +1765,23 @@ export function App() {
                         ? '2-finger swipe pans, pinch zooms, hold 0.5s + drag to select'
                         : 'Wheel zooms, middle-drag pans, right-drag to select'}
                     </p>
+                  </div>
+
+                  {/* GPU Pan Acceleration Toggle */}
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <div className="flex flex-col pr-2">
+                      <span className="text-xs font-bold text-slate-200 flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>GPU Pan Acceleration</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 leading-tight">Hardware transform for modern PCs (disable on older machines)</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={layout.plotOptions.gpuAcceleration ?? false}
+                      onChange={(e) => handleUpdatePlotOptions({ ...layout.plotOptions, gpuAcceleration: e.target.checked })}
+                      className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                    />
                   </div>
 
                   {/* Grid Resolution */}

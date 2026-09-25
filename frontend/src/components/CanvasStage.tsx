@@ -230,6 +230,16 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const [isTrackpadBoxSelecting, setIsTrackpadBoxSelecting] = useState<boolean>(false);
   const justCompletedBoxSelectionRef = useRef<boolean>(false);
 
+  // Real-time local drag preview for Export Bounds (0ms latency, zero app-wide re-render)
+  const [liveExportBounds, setLiveExportBounds] = useState<ExportBounds | null>(null);
+
+  // RAF references for ultra-smooth 60/120 FPS panning & wheel events
+  const pendingPanRef = useRef<{ x: number; y: number } | null>(null);
+  const panRafIdRef = useRef<number | null>(null);
+  const trackpadPanDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const trackpadPanRafRef = useRef<number | null>(null);
+  const gpuPanLayerRef = useRef<HTMLDivElement | null>(null);
+
   const originX = dimensions.width / 2 + panOffset.x;
   const originY = dimensions.height / 2 + panOffset.y;
 
@@ -265,7 +275,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   };
 
   // Viewport Culling / Frustum Virtualization Bounds
-  const viewportMargin = Math.max(4, 250 / Math.max(1, scale));
+  const viewportMargin = Math.max(6, 450 / Math.max(1, scale));
   const minViewportSciX = Math.min(toSciX(0), toSciX(dimensions.width)) - viewportMargin;
   const maxViewportSciX = Math.max(toSciX(0), toSciX(dimensions.width)) + viewportMargin;
   const minViewportSciY = Math.min(toSciY(0), toSciY(dimensions.height)) - viewportMargin;
@@ -461,11 +471,18 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         });
         setScale(newScale);
       } else {
-        // Trackpad Two-Finger Pan / Swipe
-        setPanOffset((prev) => ({
-          x: prev.x - e.evt.deltaX,
-          y: prev.y - e.evt.deltaY,
-        }));
+        // Trackpad Two-Finger Pan / Swipe (rAF throttled to prevent event loop saturation)
+        trackpadPanDeltaRef.current.x -= e.evt.deltaX;
+        trackpadPanDeltaRef.current.y -= e.evt.deltaY;
+        if (!trackpadPanRafRef.current) {
+          trackpadPanRafRef.current = requestAnimationFrame(() => {
+            trackpadPanRafRef.current = null;
+            const dx = trackpadPanDeltaRef.current.x;
+            const dy = trackpadPanDeltaRef.current.y;
+            trackpadPanDeltaRef.current = { x: 0, y: 0 };
+            setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+          });
+        }
       }
       return;
     }
@@ -491,19 +508,53 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     setScale(newScale);
   };
 
-  // Global window listeners for Middle-Click Viewport Panning
+  // Global window listeners for Middle-Click Viewport Panning (rAF-throttled + GPU Accelerated)
   useEffect(() => {
     if (!isPanning) return;
 
+    const useGpu = plotOptions?.gpuAcceleration ?? false;
+
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      setPanOffset({
+      const nextPan = {
         x: e.clientX - panStart.x,
         y: e.clientY - panStart.y,
-      });
+      };
+      pendingPanRef.current = nextPan;
+
+      if (useGpu && gpuPanLayerRef.current) {
+        // GPU mode: apply hardware transform directly to layer without React re-render during drag
+        const dx = nextPan.x - panOffset.x;
+        const dy = nextPan.y - panOffset.y;
+        gpuPanLayerRef.current.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+        return;
+      }
+
+      // Older PC mode: rAF throttling to monitor refresh rate (60/120Hz)
+      if (!panRafIdRef.current) {
+        panRafIdRef.current = requestAnimationFrame(() => {
+          panRafIdRef.current = null;
+          if (pendingPanRef.current) {
+            setPanOffset(pendingPanRef.current);
+          }
+        });
+      }
     };
 
     const handleGlobalMouseUp = (e: MouseEvent) => {
       if (e.button === 1 || isPanning) {
+        if (panRafIdRef.current) {
+          cancelAnimationFrame(panRafIdRef.current);
+          panRafIdRef.current = null;
+        }
+
+        if (useGpu && gpuPanLayerRef.current) {
+          gpuPanLayerRef.current.style.transform = '';
+        }
+
+        if (pendingPanRef.current) {
+          setPanOffset(pendingPanRef.current);
+          pendingPanRef.current = null;
+        }
         setIsPanning(false);
       }
       if (e.button === 2) {
@@ -517,8 +568,12 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     return () => {
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
+      if (panRafIdRef.current) {
+        cancelAnimationFrame(panRafIdRef.current);
+        panRafIdRef.current = null;
+      }
     };
-  }, [isPanning, panStart]);
+  }, [isPanning, panStart, panOffset.x, panOffset.y, plotOptions?.gpuAcceleration]);
 
   const [quickMenuPos, setQuickMenuPos] = useState<{ x: number; y: number; sciX: number; sciY: number } | null>(null);
   const [activeSnapPreview, setActiveSnapPreview] = useState<{ sciX: number; sciY: number; type: 'shape' | 'line_guidance' | 'grid' } | null>(null);
@@ -1456,12 +1511,13 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
   const renderExportBounds = () => {
     if (mode !== 'main_scene') return null;
-    const left = toPixelX(exportBounds.xMin);
-    const top = toPixelY(exportBounds.yMax);
-    const right = toPixelX(exportBounds.xMax);
-    const bottom = toPixelY(exportBounds.yMin);
-    const width = (exportBounds.xMax - exportBounds.xMin) * scale;
-    const height = (exportBounds.yMax - exportBounds.yMin) * scale;
+    const activeBounds = liveExportBounds || exportBounds;
+    const left = toPixelX(activeBounds.xMin);
+    const top = toPixelY(activeBounds.yMax);
+    const right = toPixelX(activeBounds.xMax);
+    const bottom = toPixelY(activeBounds.yMin);
+    const width = (activeBounds.xMax - activeBounds.xMin) * scale;
+    const height = (activeBounds.yMax - activeBounds.yMin) * scale;
     const isSelected = selectedNodeId === 'export_bounds';
 
     const handleSize = 10;
@@ -1502,6 +1558,18 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
+            const dx = toSciX(e.target.x()) - exportBounds.xMin;
+            const dy = toSciY(e.target.y()) - exportBounds.yMax;
+            const w = exportBounds.xMax - exportBounds.xMin;
+            const h = exportBounds.yMax - exportBounds.yMin;
+            const newXMin = Math.round((exportBounds.xMin + dx) * 10) / 10;
+            const newYMax = Math.round((exportBounds.yMax + dy) * 10) / 10;
+            setLiveExportBounds({
+              xMin: newXMin,
+              xMax: Math.round((newXMin + w) * 10) / 10,
+              yMin: Math.round((newYMax - h) * 10) / 10,
+              yMax: newYMax,
+            });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
@@ -1512,12 +1580,14 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             const h = exportBounds.yMax - exportBounds.yMin;
             const newXMin = Math.round((exportBounds.xMin + dx) * 10) / 10;
             const newYMax = Math.round((exportBounds.yMax + dy) * 10) / 10;
-            onUpdateExportBounds({
+            const finalBounds = {
               xMin: newXMin,
               xMax: Math.round((newXMin + w) * 10) / 10,
               yMin: Math.round((newYMax - h) * 10) / 10,
               yMax: newYMax,
-            });
+            };
+            setLiveExportBounds(null);
+            onUpdateExportBounds(finalBounds);
           }}
         />
 
@@ -1532,7 +1602,13 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           }}
         >
           <Tag fill={isSelected ? "#a855f7" : "#8b5cf6"} cornerRadius={4} opacity={0.9} />
-          <Text text="Export Boundary" fill="#ffffff" fontSize={11} padding={4} fontStyle="bold" />
+          <Text
+            text={`Export Boundary (${Math.round((activeBounds.xMax - activeBounds.xMin) * 10) / 10} × ${Math.round((activeBounds.yMax - activeBounds.yMin) * 10) / 10})`}
+            fill="#ffffff"
+            fontSize={11}
+            padding={4}
+            fontStyle="bold"
+          />
         </Label>
 
         {/* Interactive Corner Resizing Handles */}
@@ -1558,16 +1634,25 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
+                const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
+                const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                setLiveExportBounds({
+                  ...activeBounds,
+                  xMin: Math.min(newXMin, activeBounds.xMax - 1),
+                  yMax: Math.max(newYMax, activeBounds.yMin + 1),
+                });
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
                 const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
                 const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
-                onUpdateExportBounds({
-                  ...exportBounds,
-                  xMin: Math.min(newXMin, exportBounds.xMax - 1),
-                  yMax: Math.max(newYMax, exportBounds.yMin + 1),
-                });
+                const finalBounds = {
+                  ...activeBounds,
+                  xMin: Math.min(newXMin, activeBounds.xMax - 1),
+                  yMax: Math.max(newYMax, activeBounds.yMin + 1),
+                };
+                setLiveExportBounds(null);
+                onUpdateExportBounds(finalBounds);
               }}
             />
 
@@ -1591,16 +1676,25 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
+                const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
+                const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                setLiveExportBounds({
+                  ...activeBounds,
+                  xMax: Math.max(newXMax, activeBounds.xMin + 1),
+                  yMax: Math.max(newYMax, activeBounds.yMin + 1),
+                });
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
                 const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
                 const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
-                onUpdateExportBounds({
-                  ...exportBounds,
-                  xMax: Math.max(newXMax, exportBounds.xMin + 1),
-                  yMax: Math.max(newYMax, exportBounds.yMin + 1),
-                });
+                const finalBounds = {
+                  ...activeBounds,
+                  xMax: Math.max(newXMax, activeBounds.xMin + 1),
+                  yMax: Math.max(newYMax, activeBounds.yMin + 1),
+                };
+                setLiveExportBounds(null);
+                onUpdateExportBounds(finalBounds);
               }}
             />
 
@@ -1624,16 +1718,25 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
+                const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
+                const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                setLiveExportBounds({
+                  ...activeBounds,
+                  xMin: Math.min(newXMin, activeBounds.xMax - 1),
+                  yMin: Math.min(newYMin, activeBounds.yMax - 1),
+                });
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
                 const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
                 const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
-                onUpdateExportBounds({
-                  ...exportBounds,
-                  xMin: Math.min(newXMin, exportBounds.xMax - 1),
-                  yMin: Math.min(newYMin, exportBounds.yMax - 1),
-                });
+                const finalBounds = {
+                  ...activeBounds,
+                  xMin: Math.min(newXMin, activeBounds.xMax - 1),
+                  yMin: Math.min(newYMin, activeBounds.yMax - 1),
+                };
+                setLiveExportBounds(null);
+                onUpdateExportBounds(finalBounds);
               }}
             />
 
@@ -1657,16 +1760,25 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
+                const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
+                const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                setLiveExportBounds({
+                  ...activeBounds,
+                  xMax: Math.max(newXMax, activeBounds.xMin + 1),
+                  yMin: Math.min(newYMin, activeBounds.yMax - 1),
+                });
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
                 const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
                 const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
-                onUpdateExportBounds({
-                  ...exportBounds,
-                  xMax: Math.max(newXMax, exportBounds.xMin + 1),
-                  yMin: Math.min(newYMin, exportBounds.yMax - 1),
-                });
+                const finalBounds = {
+                  ...activeBounds,
+                  xMax: Math.max(newXMax, activeBounds.xMin + 1),
+                  yMax: Math.min(newYMin, activeBounds.yMax - 1),
+                };
+                setLiveExportBounds(null);
+                onUpdateExportBounds(finalBounds);
               }}
             />
           </>
@@ -5516,7 +5628,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         );
       })()}
 
-      <Stage
+      <div
+        ref={gpuPanLayerRef}
+        className="w-full h-full relative"
+      >
+        <Stage
         width={dimensions.width}
         height={dimensions.height}
         ref={stageRef}
@@ -5633,9 +5749,14 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         </Layer>
       </Stage>
 
-      {/* KaTeX Live Math Mode HTML Overlay (Only render DOM nodes for visible viewport elements) */}
+      {/* KaTeX Live Math Mode HTML Overlay (Batch GPU-translated layer) */}
       {mode === 'main_scene' && (plotOptions?.renderMathOnCanvas ?? true) && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10">
+        <div
+          className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10"
+          style={{
+            transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0)`,
+          }}
+        >
           {visibleScene
             .filter((node) => node.label && node.label.trim())
             .map((node) => {
@@ -5645,8 +5766,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               const nodeScale = node.scale || 1.0;
               const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
               const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
-              const labelPx = toPixelX(node.x) + lox;
-              const labelPy = toPixelY(node.y) + loy;
+              const labelBasePx = dimensions.width / 2 + node.x * scale + lox;
+              const labelBasePy = dimensions.height / 2 - node.y * scale + loy;
 
               const baseFSize = node.fontSize || 12;
               const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? false;
@@ -5668,8 +5789,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                     align === 'left' ? 'items-start text-left' : align === 'right' ? 'items-end text-right' : 'items-center text-center'
                   }`}
                   style={{
-                    left: `${labelPx}px`,
-                    top: `${labelPy}px`,
+                    left: `${labelBasePx}px`,
+                    top: `${labelBasePy}px`,
                     transform: 'translate(-50%, -50%)',
                     textAlign: align,
                     lineHeight: 1.15,
@@ -5686,6 +5807,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             })}
         </div>
       )}
+    </div>
 
       {/* Double Click Floating Label Editor Popover */}
       {mode === 'main_scene' && editingLabelNodeId && (() => {

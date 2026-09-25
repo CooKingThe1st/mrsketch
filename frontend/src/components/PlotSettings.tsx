@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PlotOptions } from '../types/schema';
-import { Sliders, Grid, Type, Palette, Eye, Square, MousePointer, Laptop } from 'lucide-react';
+import { Sliders, Grid, Type, Palette, Eye, Square, MousePointer, Laptop, Zap } from 'lucide-react';
 
 interface PlotSettingsProps {
   plotOptions: PlotOptions;
@@ -62,6 +62,25 @@ export const PlotSettings: React.FC<PlotSettingsProps> = ({ plotOptions, onUpdat
           {(plotOptions.inputMode ?? 'mouse') === 'trackpad'
             ? 'Trackpad: Two-finger swipe to pan, pinch to zoom, and hold-click 0.5s on background + drag to box-select.'
             : 'Mouse: Mouse wheel to zoom, middle-click drag to pan, right-click drag to box-select.'}
+        </p>
+      </div>
+
+      {/* GPU Pan Acceleration Settings */}
+      <div className="bg-slate-800/60 p-3.5 rounded-lg border border-slate-700 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span>Hardware GPU Pan Acceleration</span>
+          </div>
+          <input
+            type="checkbox"
+            checked={plotOptions.gpuAcceleration ?? false}
+            onChange={(e) => onUpdatePlotOptions({ ...plotOptions, gpuAcceleration: e.target.checked })}
+            className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+          />
+        </div>
+        <p className="text-[11px] text-slate-400 leading-snug">
+          When ON, shifts the canvas via GPU hardware transforms during middle-mouse dragging (recommended for modern PCs). When OFF, uses CPU-friendly rAF throttling (ideal for older laptops/computers).
         </p>
       </div>
 

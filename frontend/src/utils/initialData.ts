@@ -164,6 +164,7 @@ export const DEFAULT_PLOT_OPTIONS: PlotOptions = {
   scaleLabelsWithZoom: true,
   renderMathOnCanvas: true,
   inputMode: 'mouse',
+  gpuAcceleration: false,
   cropToContent: false,
   cropPadding: 0.05,
   marginPadding: 0.05,
