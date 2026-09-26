@@ -1501,16 +1501,23 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     const activeBounds = liveExportBounds || exportBounds;
     const left = toPixelX(activeBounds.xMin);
     const top = toPixelY(activeBounds.yMax);
-    const right = toPixelX(activeBounds.xMax);
-    const bottom = toPixelY(activeBounds.yMin);
     const width = (activeBounds.xMax - activeBounds.xMin) * scale;
     const height = (activeBounds.yMax - activeBounds.yMin) * scale;
     const isSelected = selectedNodeId === 'export_bounds';
+
+    // Base handle positions anchored to stable exportBounds to prevent drag compounding
+    const baseLeft = toPixelX(exportBounds.xMin);
+    const baseTop = toPixelY(exportBounds.yMax);
+    const baseRight = toPixelX(exportBounds.xMax);
+    const baseBottom = toPixelY(exportBounds.yMin);
+    const baseWidth = (exportBounds.xMax - exportBounds.xMin) * scale;
+    const baseHeight = (exportBounds.yMax - exportBounds.yMin) * scale;
 
     const handleSize = 10;
 
     return (
       <Group key="export_bounds_group">
+        {/* Real-time live visual outline (follows cursor at 60 FPS) */}
         <Rect
           x={left}
           y={top}
@@ -1525,10 +1532,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
         {/* Interactive Border Frame for selecting and moving export_bounds */}
         <Rect
-          x={left}
-          y={top}
-          width={width}
-          height={height}
+          x={baseLeft}
+          y={baseTop}
+          width={baseWidth}
+          height={baseHeight}
           stroke="transparent"
           strokeWidth={12}
           draggable={drawingMode === 'select'}
@@ -1562,7 +1569,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             e.cancelBubble = true;
             const dx = toSciX(e.target.x()) - exportBounds.xMin;
             const dy = toSciY(e.target.y()) - exportBounds.yMax;
-            e.target.position({ x: left, y: top });
             const w = exportBounds.xMax - exportBounds.xMin;
             const h = exportBounds.yMax - exportBounds.yMin;
             const newXMin = Math.round((exportBounds.xMin + dx) * 10) / 10;
@@ -1573,6 +1579,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               yMin: Math.round((newYMax - h) * 10) / 10,
               yMax: newYMax,
             };
+            e.target.position({ x: toPixelX(finalBounds.xMin), y: toPixelY(finalBounds.yMax) });
             setLiveExportBounds(null);
             onUpdateExportBounds(finalBounds);
           }}
@@ -1603,8 +1610,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           <>
             {/* Top-Left Corner Handle */}
             <Rect
-              x={left - handleSize / 2}
-              y={top - handleSize / 2}
+              x={baseLeft - handleSize / 2}
+              y={baseTop - handleSize / 2}
               width={handleSize}
               height={handleSize}
               fill="#c084fc"
@@ -1621,23 +1628,26 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
-                const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                const absPos = e.target.getAbsolutePosition();
+                const newXMin = Math.round(toSciX(absPos.x + handleSize / 2) * 10) / 10;
+                const newYMax = Math.round(toSciY(absPos.y + handleSize / 2) * 10) / 10;
                 setLiveExportBounds({
-                  ...activeBounds,
-                  xMin: Math.min(newXMin, activeBounds.xMax - 1),
-                  yMax: Math.max(newYMax, activeBounds.yMin + 1),
+                  ...exportBounds,
+                  xMin: Math.min(newXMin, exportBounds.xMax - 0.5),
+                  yMax: Math.max(newYMax, exportBounds.yMin + 0.5),
                 });
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
-                const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                const absPos = e.target.getAbsolutePosition();
+                const newXMin = Math.round(Math.min(toSciX(absPos.x + handleSize / 2), exportBounds.xMax - 0.5) * 10) / 10;
+                const newYMax = Math.round(Math.max(toSciY(absPos.y + handleSize / 2), exportBounds.yMin + 0.5) * 10) / 10;
                 const finalBounds = {
-                  ...activeBounds,
-                  xMin: Math.min(newXMin, activeBounds.xMax - 1),
-                  yMax: Math.max(newYMax, activeBounds.yMin + 1),
+                  ...exportBounds,
+                  xMin: newXMin,
+                  yMax: newYMax,
                 };
+                e.target.position({ x: toPixelX(finalBounds.xMin) - handleSize / 2, y: toPixelY(finalBounds.yMax) - handleSize / 2 });
                 setLiveExportBounds(null);
                 onUpdateExportBounds(finalBounds);
               }}
@@ -1645,8 +1655,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
             {/* Top-Right Corner Handle */}
             <Rect
-              x={right - handleSize / 2}
-              y={top - handleSize / 2}
+              x={baseRight - handleSize / 2}
+              y={baseTop - handleSize / 2}
               width={handleSize}
               height={handleSize}
               fill="#c084fc"
@@ -1663,23 +1673,26 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
-                const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                const absPos = e.target.getAbsolutePosition();
+                const newXMax = Math.round(toSciX(absPos.x + handleSize / 2) * 10) / 10;
+                const newYMax = Math.round(toSciY(absPos.y + handleSize / 2) * 10) / 10;
                 setLiveExportBounds({
-                  ...activeBounds,
-                  xMax: Math.max(newXMax, activeBounds.xMin + 1),
-                  yMax: Math.max(newYMax, activeBounds.yMin + 1),
+                  ...exportBounds,
+                  xMax: Math.max(newXMax, exportBounds.xMin + 0.5),
+                  yMax: Math.max(newYMax, exportBounds.yMin + 0.5),
                 });
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
-                const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMax = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                const absPos = e.target.getAbsolutePosition();
+                const newXMax = Math.round(Math.max(toSciX(absPos.x + handleSize / 2), exportBounds.xMin + 0.5) * 10) / 10;
+                const newYMax = Math.round(Math.max(toSciY(absPos.y + handleSize / 2), exportBounds.yMin + 0.5) * 10) / 10;
                 const finalBounds = {
-                  ...activeBounds,
-                  xMax: Math.max(newXMax, activeBounds.xMin + 1),
-                  yMax: Math.max(newYMax, activeBounds.yMin + 1),
+                  ...exportBounds,
+                  xMax: newXMax,
+                  yMax: newYMax,
                 };
+                e.target.position({ x: toPixelX(finalBounds.xMax) - handleSize / 2, y: toPixelY(finalBounds.yMax) - handleSize / 2 });
                 setLiveExportBounds(null);
                 onUpdateExportBounds(finalBounds);
               }}
@@ -1687,8 +1700,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
             {/* Bottom-Left Corner Handle */}
             <Rect
-              x={left - handleSize / 2}
-              y={bottom - handleSize / 2}
+              x={baseLeft - handleSize / 2}
+              y={baseBottom - handleSize / 2}
               width={handleSize}
               height={handleSize}
               fill="#c084fc"
@@ -1705,23 +1718,26 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
-                const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                const absPos = e.target.getAbsolutePosition();
+                const newXMin = Math.round(toSciX(absPos.x + handleSize / 2) * 10) / 10;
+                const newYMin = Math.round(toSciY(absPos.y + handleSize / 2) * 10) / 10;
                 setLiveExportBounds({
-                  ...activeBounds,
-                  xMin: Math.min(newXMin, activeBounds.xMax - 1),
-                  yMin: Math.min(newYMin, activeBounds.yMax - 1),
+                  ...exportBounds,
+                  xMin: Math.min(newXMin, exportBounds.xMax - 0.5),
+                  yMin: Math.min(newYMin, exportBounds.yMax - 0.5),
                 });
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
-                const newXMin = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                const absPos = e.target.getAbsolutePosition();
+                const newXMin = Math.round(Math.min(toSciX(absPos.x + handleSize / 2), exportBounds.xMax - 0.5) * 10) / 10;
+                const newYMin = Math.round(Math.min(toSciY(absPos.y + handleSize / 2), exportBounds.yMax - 0.5) * 10) / 10;
                 const finalBounds = {
-                  ...activeBounds,
-                  xMin: Math.min(newXMin, activeBounds.xMax - 1),
-                  yMin: Math.min(newYMin, activeBounds.yMax - 1),
+                  ...exportBounds,
+                  xMin: newXMin,
+                  yMin: newYMin,
                 };
+                e.target.position({ x: toPixelX(finalBounds.xMin) - handleSize / 2, y: toPixelY(finalBounds.yMin) - handleSize / 2 });
                 setLiveExportBounds(null);
                 onUpdateExportBounds(finalBounds);
               }}
@@ -1729,8 +1745,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
             {/* Bottom-Right Corner Handle */}
             <Rect
-              x={right - handleSize / 2}
-              y={bottom - handleSize / 2}
+              x={baseRight - handleSize / 2}
+              y={baseBottom - handleSize / 2}
               width={handleSize}
               height={handleSize}
               fill="#c084fc"
@@ -1747,23 +1763,26 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               }}
               onDragMove={(e) => {
                 e.cancelBubble = true;
-                const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                const absPos = e.target.getAbsolutePosition();
+                const newXMax = Math.round(toSciX(absPos.x + handleSize / 2) * 10) / 10;
+                const newYMin = Math.round(toSciY(absPos.y + handleSize / 2) * 10) / 10;
                 setLiveExportBounds({
-                  ...activeBounds,
-                  xMax: Math.max(newXMax, activeBounds.xMin + 1),
-                  yMin: Math.min(newYMin, activeBounds.yMax - 1),
+                  ...exportBounds,
+                  xMax: Math.max(newXMax, exportBounds.xMin + 0.5),
+                  yMin: Math.min(newYMin, exportBounds.yMax - 0.5),
                 });
               }}
               onDragEnd={(e) => {
                 e.cancelBubble = true;
-                const newXMax = Math.round(toSciX(e.target.x() + handleSize / 2) * 10) / 10;
-                const newYMin = Math.round(toSciY(e.target.y() + handleSize / 2) * 10) / 10;
+                const absPos = e.target.getAbsolutePosition();
+                const newXMax = Math.round(Math.max(toSciX(absPos.x + handleSize / 2), exportBounds.xMin + 0.5) * 10) / 10;
+                const newYMin = Math.round(Math.min(toSciY(absPos.y + handleSize / 2), exportBounds.yMax - 0.5) * 10) / 10;
                 const finalBounds = {
-                  ...activeBounds,
-                  xMax: Math.max(newXMax, activeBounds.xMin + 1),
-                  yMax: Math.min(newYMin, activeBounds.yMax - 1),
+                  ...exportBounds,
+                  xMax: newXMax,
+                  yMin: newYMin,
                 };
+                e.target.position({ x: toPixelX(finalBounds.xMax) - handleSize / 2, y: toPixelY(finalBounds.yMin) - handleSize / 2 });
                 setLiveExportBounds(null);
                 onUpdateExportBounds(finalBounds);
               }}
@@ -3167,8 +3186,26 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         y={py}
         rotation={-(node.rotation || 0)}
         draggable={drawingMode === 'select'}
+        onMouseDown={(e) => {
+          if (drawingMode === 'select' && e.evt.button === 0) {
+            e.cancelBubble = true;
+            if (e.evt.ctrlKey || e.evt.metaKey) {
+              if (selectedNodeIds.includes(node.id)) {
+                const newIds = selectedNodeIds.filter((id) => id !== node.id);
+                onSelectNodes(newIds);
+                onSelectNode(newIds.length > 0 ? newIds[newIds.length - 1] : null);
+              } else {
+                const newIds = [...selectedNodeIds, node.id];
+                onSelectNodes(newIds);
+                onSelectNode(node.id);
+              }
+            } else if (!selectedNodeIds.includes(node.id)) {
+              onSelectNode(node.id);
+              onSelectNodes([node.id]);
+            }
+          }
+        }}
         onDragStart={(e) => {
-          if (e.target !== e.currentTarget) return;
           if (e.evt.button !== 0) {
             e.target.stopDrag();
             return;
@@ -3370,20 +3407,14 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
           const baseFSize = node.fontSize || 12;
           const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? true;
-          const baselineScale = 40;
-          const scaledFSize = baseFSize * (scale / baselineScale);
+          const defaultScale = 72;
 
-          // Smart Zoom Thresholds:
-          // 1) Scale with Zoom ON: hide if text shrinks below readable threshold (< 8px)
-          if (scaleWithZoom && scaledFSize < 8) {
-            return null;
-          }
-          // 2) Scale with Zoom OFF: hide if zoomed out so far that fixed text dwarfs and hides shapes (< 20)
-          if (!scaleWithZoom && scale < 20) {
+          // Smart Zoom Threshold: hide labels when zoomed out far (scale < 20)
+          if (scale < 20) {
             return null;
           }
 
-          const fSize = scaleWithZoom ? Math.round(scaledFSize) : baseFSize;
+          const fSize = scaleWithZoom ? Math.max(8, Math.round(baseFSize * (scale / defaultScale))) : baseFSize;
 
           const lines = (node.label || '').split('\n');
           const maxLineChars = Math.max(...lines.map((l) => l.length), 1);
@@ -3412,6 +3443,15 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 radius={Math.max(12, 16 * zoomRatio)}
                 fill="transparent"
                 hitStrokeWidth={16}
+                onMouseDown={(e) => {
+                  if (drawingMode === 'select' && e.evt.button === 0) {
+                    e.cancelBubble = true;
+                    if (!e.evt.ctrlKey && !e.evt.metaKey) {
+                      onSelectNode(node.id);
+                      onSelectNodes([node.id]);
+                    }
+                  }
+                }}
                 onClick={(e) => {
                   if (drawingMode === 'select') {
                     e.cancelBubble = true;
@@ -5769,20 +5809,14 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
               const baseFSize = node.fontSize || 12;
               const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? true;
-              const baselineScale = 40;
-              const scaledFSize = baseFSize * (scale / baselineScale);
+              const defaultScale = 72;
 
-              // Smart Zoom Thresholds:
-              // 1) Scale with Zoom ON: hide if text shrinks below readable threshold (< 8px)
-              if (scaleWithZoom && scaledFSize < 8) {
-                return null;
-              }
-              // 2) Scale with Zoom OFF: hide if zoomed out so far that fixed text dwarfs and hides shapes (< 20)
-              if (!scaleWithZoom && scale < 20) {
+              // Smart Zoom Threshold: hide labels when zoomed out far (scale < 20)
+              if (scale < 20) {
                 return null;
               }
 
-              const fSize = scaleWithZoom ? Math.round(scaledFSize) : baseFSize;
+              const fSize = scaleWithZoom ? Math.max(8, Math.round(baseFSize * (scale / defaultScale))) : baseFSize;
 
               const trueTextColor = node.labelTextColor || node.style.color || (canvasBgTheme === 'light' ? '#0f172a' : '#f8fafc');
               const boxOpacity = plotOptions?.labelBoxOpacity ?? 0.0;
