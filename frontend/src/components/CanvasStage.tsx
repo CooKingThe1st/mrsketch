@@ -512,8 +512,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   useEffect(() => {
     if (!isPanning) return;
 
-    const useGpu = plotOptions?.gpuAcceleration ?? false;
-
     const handleGlobalMouseMove = (e: MouseEvent) => {
       const nextPan = {
         x: e.clientX - panStart.x,
@@ -521,15 +519,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       };
       pendingPanRef.current = nextPan;
 
-      if (useGpu && gpuPanLayerRef.current) {
-        // GPU mode: apply hardware transform directly to layer without React re-render during drag
-        const dx = nextPan.x - panOffset.x;
-        const dy = nextPan.y - panOffset.y;
-        gpuPanLayerRef.current.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
-        return;
-      }
-
-      // Older PC mode: rAF throttling to monitor refresh rate (60/120Hz)
+      // Ultra-smooth rAF pan throttled to display refresh rate (60/120/144 FPS)
+      // Keeps canvas firmly pinned to viewport so grid always covers 100% of screen without dead space!
       if (!panRafIdRef.current) {
         panRafIdRef.current = requestAnimationFrame(() => {
           panRafIdRef.current = null;
@@ -545,10 +536,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         if (panRafIdRef.current) {
           cancelAnimationFrame(panRafIdRef.current);
           panRafIdRef.current = null;
-        }
-
-        if (useGpu && gpuPanLayerRef.current) {
-          gpuPanLayerRef.current.style.transform = '';
         }
 
         if (pendingPanRef.current) {
@@ -3382,9 +3369,21 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
 
           const baseFSize = node.fontSize || 12;
-          const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? false;
-          const defaultScale = 72;
-          const fSize = scaleWithZoom ? Math.max(4, Math.round(baseFSize * (scale / defaultScale))) : baseFSize;
+          const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? true;
+          const baselineScale = 40;
+          const scaledFSize = baseFSize * (scale / baselineScale);
+
+          // Smart Zoom Thresholds:
+          // 1) Scale with Zoom ON: hide if text shrinks below readable threshold (< 8px)
+          if (scaleWithZoom && scaledFSize < 8) {
+            return null;
+          }
+          // 2) Scale with Zoom OFF: hide if zoomed out so far that fixed text dwarfs and hides shapes (< 20)
+          if (!scaleWithZoom && scale < 20) {
+            return null;
+          }
+
+          const fSize = scaleWithZoom ? Math.round(scaledFSize) : baseFSize;
 
           const lines = (node.label || '').split('\n');
           const maxLineChars = Math.max(...lines.map((l) => l.length), 1);
@@ -5630,7 +5629,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
       <div
         ref={gpuPanLayerRef}
-        className="w-full h-full relative"
+        className="w-full h-full relative overflow-hidden"
+        style={plotOptions?.gpuAcceleration ? { willChange: 'contents', transform: 'translateZ(0)' } : undefined}
       >
         <Stage
         width={dimensions.width}
@@ -5749,13 +5749,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         </Layer>
       </Stage>
 
-      {/* KaTeX Live Math Mode HTML Overlay (Batch GPU-translated layer) */}
+      {/* KaTeX Live Math Mode HTML Overlay */}
       {mode === 'main_scene' && (plotOptions?.renderMathOnCanvas ?? true) && (
         <div
           className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10"
-          style={{
-            transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0)`,
-          }}
+          style={plotOptions?.gpuAcceleration ? { willChange: 'contents', transform: 'translateZ(0)' } : undefined}
         >
           {visibleScene
             .filter((node) => node.label && node.label.trim())
@@ -5766,13 +5764,25 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               const nodeScale = node.scale || 1.0;
               const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
               const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
-              const labelBasePx = dimensions.width / 2 + node.x * scale + lox;
-              const labelBasePy = dimensions.height / 2 - node.y * scale + loy;
+              const screenPx = toPixelX(node.x) + lox;
+              const screenPy = toPixelY(node.y) + loy;
 
               const baseFSize = node.fontSize || 12;
-              const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? false;
-              const defaultScale = 72;
-              const fSize = scaleWithZoom ? Math.max(8, Math.round(baseFSize * (scale / defaultScale))) : baseFSize;
+              const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? true;
+              const baselineScale = 40;
+              const scaledFSize = baseFSize * (scale / baselineScale);
+
+              // Smart Zoom Thresholds:
+              // 1) Scale with Zoom ON: hide if text shrinks below readable threshold (< 8px)
+              if (scaleWithZoom && scaledFSize < 8) {
+                return null;
+              }
+              // 2) Scale with Zoom OFF: hide if zoomed out so far that fixed text dwarfs and hides shapes (< 20)
+              if (!scaleWithZoom && scale < 20) {
+                return null;
+              }
+
+              const fSize = scaleWithZoom ? Math.round(scaledFSize) : baseFSize;
 
               const trueTextColor = node.labelTextColor || node.style.color || (canvasBgTheme === 'light' ? '#0f172a' : '#f8fafc');
               const boxOpacity = plotOptions?.labelBoxOpacity ?? 0.0;
@@ -5789,8 +5799,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                     align === 'left' ? 'items-start text-left' : align === 'right' ? 'items-end text-right' : 'items-center text-center'
                   }`}
                   style={{
-                    left: `${labelBasePx}px`,
-                    top: `${labelBasePy}px`,
+                    left: `${screenPx}px`,
+                    top: `${screenPy}px`,
                     transform: 'translate(-50%, -50%)',
                     textAlign: align,
                     lineHeight: 1.15,

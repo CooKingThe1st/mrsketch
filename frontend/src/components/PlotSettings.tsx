@@ -243,7 +243,7 @@ export const PlotSettings: React.FC<PlotSettingsProps> = ({ plotOptions, onUpdat
           </div>
           <input
             type="checkbox"
-            checked={plotOptions.scaleLabelsWithZoom ?? false}
+            checked={plotOptions.scaleLabelsWithZoom ?? true}
             onChange={(e) => onUpdatePlotOptions({ ...plotOptions, scaleLabelsWithZoom: e.target.checked })}
             className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
           />
