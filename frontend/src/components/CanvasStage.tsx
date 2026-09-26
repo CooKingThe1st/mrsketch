@@ -5,6 +5,7 @@ import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Tria
 import { syncBoundNodesForGroup } from '../App';
 import { renderLatexToHtml } from '../utils/latexRenderer';
 import { useMacroParser } from '../hooks/useMacroParser';
+import { PRESET_ROBOTS } from '../utils/initialData';
 
 interface CanvasStageProps {
   mode: 'main_scene' | 'robot_designer';
@@ -239,6 +240,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const trackpadPanDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const trackpadPanRafRef = useRef<number | null>(null);
   const gpuPanLayerRef = useRef<HTMLDivElement | null>(null);
+  const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null);
 
   const originX = dimensions.width / 2 + panOffset.x;
   const originY = dimensions.height / 2 + panOffset.y;
@@ -273,6 +275,19 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     }
     return (originY - py) / scale;
   };
+
+  const exportBoundsRef = useRef<ExportBounds>(exportBounds);
+  exportBoundsRef.current = exportBounds;
+  const onUpdateExportBoundsRef = useRef(onUpdateExportBounds);
+  onUpdateExportBoundsRef.current = onUpdateExportBounds;
+  const onSelectNodeRef = useRef(onSelectNode);
+  onSelectNodeRef.current = onSelectNode;
+  const toSciXRef = useRef(toSciX);
+  toSciXRef.current = toSciX;
+  const toSciYRef = useRef(toSciY);
+  toSciYRef.current = toSciY;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
   // Viewport Culling / Frustum Virtualization Bounds
   const viewportMargin = Math.max(6, 450 / Math.max(1, scale));
@@ -380,11 +395,64 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     };
   }, []);
 
+  // Global mousemove tracking for instantaneous cursor coordinate awareness
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        ) {
+          lastPointerPosRef.current = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          };
+        }
+      }
+    };
+    window.addEventListener('mousemove', handleGlobalMouseMove, { passive: true });
+    return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
+  }, []);
+
   // Global ESC key listener to cancel midway drawing or shape placement
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeTag = (document.activeElement?.tagName || '').toUpperCase();
       if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+      // Keyboard combo to instantly move export boundary to where mouse currently is (B, Ctrl+B, Shift+B)
+      if ((e.key === 'b' || e.key === 'B') && modeRef.current === 'main_scene') {
+        const pointer = lastPointerPosRef.current || stageRef.current?.getPointerPosition();
+        if (pointer) {
+          e.preventDefault();
+          const targetSciX = Math.round(toSciXRef.current(pointer.x) * 10) / 10;
+          const targetSciY = Math.round(toSciYRef.current(pointer.y) * 10) / 10;
+          const curBounds = exportBoundsRef.current;
+          const w = curBounds.xMax - curBounds.xMin;
+          const h = curBounds.yMax - curBounds.yMin;
+          const halfW = w / 2;
+          const halfH = h / 2;
+          const newXMin = Math.round((targetSciX - halfW) * 10) / 10;
+          const newXMax = Math.round((newXMin + w) * 10) / 10;
+          const newYMin = Math.round((targetSciY - halfH) * 10) / 10;
+          const newYMax = Math.round((newYMin + h) * 10) / 10;
+          const finalBounds = {
+            ...curBounds,
+            xMin: newXMin,
+            xMax: newXMax,
+            yMin: newYMin,
+            yMax: newYMax,
+          };
+          onUpdateExportBoundsRef.current(finalBounds);
+          onSelectNodeRef.current('export_bounds');
+          setActiveSnapPreview({ sciX: targetSciX, sciY: targetSciY, type: 'grid' });
+          setTimeout(() => setActiveSnapPreview(null), 400);
+          return;
+        }
+      }
 
       if (e.key === 'Escape') {
         setDrawStart(null);
@@ -1051,6 +1119,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     const stage = e.target.getStage();
     const pointerPos = stage?.getPointerPosition();
     if (!pointerPos) return;
+    lastPointerPosRef.current = { x: pointerPos.x, y: pointerPos.y };
 
     // Trackpad mode: cancel hold-drag timer if moved before 500ms has elapsed
     if (trackpadHoldTimerRef.current && trackpadHoldPosRef.current) {
@@ -1597,7 +1666,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         >
           <Tag fill={isSelected ? "#a855f7" : "#8b5cf6"} cornerRadius={4} opacity={0.9} />
           <Text
-            text={`Export Boundary (${Math.round((activeBounds.xMax - activeBounds.xMin) * 10) / 10} × ${Math.round((activeBounds.yMax - activeBounds.yMin) * 10) / 10})`}
+            text={`Export Boundary (${Math.round((activeBounds.xMax - activeBounds.xMin) * 10) / 10} × ${Math.round((activeBounds.yMax - activeBounds.yMin) * 10) / 10}) [B]`}
             fill="#ffffff"
             fontSize={11}
             padding={4}
@@ -1957,7 +2026,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       if (!isSelected && !selectedNodeIds.includes(node.id)) return null;
 
       return (
-        <Group key={`${node.id}_handles_overlay`} x={px} y={py} rotation={node.rotation}>
+        <Group key={`${node.id}_handles_overlay`} x={px} y={py} rotation={-(node.rotation || 0)}>
           {/* Dashed selection/move circle for translating entire node */}
           <Circle
             x={circleX}
@@ -2815,6 +2884,34 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 );
               })()}
 
+              {/* Outer dashed bounding ring for alias (custom robot) nodes */}
+              {node.type === 'alias' && (() => {
+                const def = (node.definitionId && definitions[node.definitionId]) || PRESET_ROBOTS[node.definitionId || 'diff_drive_bot'] || PRESET_ROBOTS['diff_drive_bot'];
+                let maxR = 35;
+                if (def?.primitives) {
+                  def.primitives.forEach((p) => {
+                    if (p.type === 'circle') maxR = Math.max(maxR, (p.config.radius || 20) + Math.hypot(p.config.x || 0, p.config.y || 0));
+                    else if (p.type === 'rect') maxR = Math.max(maxR, Math.hypot((p.config.width || 30) / 2, (p.config.height || 20) / 2) + Math.hypot(p.config.x || 0, p.config.y || 0));
+                    else if (p.type === 'poly' && p.config.vertices) {
+                      p.config.vertices.forEach(([vx, vy]) => {
+                        maxR = Math.max(maxR, Math.hypot((p.config.x || 0) + vx, (p.config.y || 0) - vy));
+                      });
+                    }
+                  });
+                }
+                const outerRadius = (maxR + 4) * nodeScale * zoomRatio;
+                return (
+                  <Circle
+                    key={`alias_outer_ring_${node.id}`}
+                    radius={outerRadius}
+                    stroke={isSelected ? "#2563eb" : "#a855f7"}
+                    strokeWidth={1.5}
+                    dash={[4, 4]}
+                    listening={false}
+                  />
+                );
+              })()}
+
               {/* Draggable dashed circle handle for Annotation Label */}
               {node.type !== 'text' && node.label && node.label.trim() && (() => {
                 const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle' || node.type === 'alias';
@@ -2885,9 +2982,31 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
     let nodeContent = null;
 
-    if (node.type === 'alias' && node.definitionId && definitions[node.definitionId]) {
-      const def = definitions[node.definitionId];
-      nodeContent = <Group listening={false}>{renderRobotPrimitives(def, node.style, nodeScale)}</Group>;
+    if (node.type === 'alias') {
+      const def = (node.definitionId && definitions[node.definitionId]) || PRESET_ROBOTS[node.definitionId || 'diff_drive_bot'] || PRESET_ROBOTS['diff_drive_bot'];
+      let maxR = 35;
+      if (def?.primitives) {
+        def.primitives.forEach((p) => {
+          if (p.type === 'circle') maxR = Math.max(maxR, (p.config.radius || 20) + Math.hypot(p.config.x || 0, p.config.y || 0));
+          else if (p.type === 'rect') maxR = Math.max(maxR, Math.hypot((p.config.width || 30) / 2, (p.config.height || 20) / 2) + Math.hypot(p.config.x || 0, p.config.y || 0));
+          else if (p.type === 'poly' && p.config.vertices) {
+            p.config.vertices.forEach(([vx, vy]) => {
+              maxR = Math.max(maxR, Math.hypot((p.config.x || 0) + vx, (p.config.y || 0) - vy));
+            });
+          }
+        });
+      }
+      const hitRadius = maxR * nodeScale * zoomRatio;
+      nodeContent = (
+        <Group>
+          <Circle
+            radius={hitRadius}
+            fill="rgba(0,0,0,0.001)"
+            hitStrokeWidth={12}
+          />
+          {def && renderRobotPrimitives(def, node.style, nodeScale)}
+        </Group>
+      );
     } else if (node.type === 'obstacle' || node.type === 'rect') {
       const w = (node.width || 2) * scale * nodeScale;
       const h = (node.height || 2) * scale * nodeScale;
@@ -3199,9 +3318,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 onSelectNodes(newIds);
                 onSelectNode(node.id);
               }
-            } else if (!selectedNodeIds.includes(node.id)) {
+            } else {
               onSelectNode(node.id);
-              onSelectNodes([node.id]);
+              if (!selectedNodeIds.includes(node.id) || selectedNodeIds.length > 1) {
+                onSelectNodes([node.id]);
+              }
             }
           }
         }}

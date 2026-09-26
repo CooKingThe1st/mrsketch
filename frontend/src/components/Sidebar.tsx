@@ -1277,6 +1277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="flex items-center gap-2 min-w-0">
                     <Crop className="w-3.5 h-3.5 text-purple-400" />
                     <span className="truncate">Export Boundary</span>
+                    <span className="text-[9px] px-1 py-0.2 bg-purple-900/60 text-purple-200 border border-purple-700/50 rounded font-mono font-bold" title="Press 'B' anywhere on canvas to center boundary at mouse cursor">B</span>
                   </div>
                   <span className="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded font-mono">
                     [{exportBounds.xMin}, {exportBounds.xMax}]
@@ -1346,9 +1347,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Inspector Panel for Export Boundary */}
             {isExportBoundsSelected && (
               <div className="bg-purple-950/40 p-3.5 rounded-xl border border-purple-800/60 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-purple-200 border-b border-purple-800/50 pb-2">
-                  <Crop className="w-4 h-4 text-purple-400" />
-                  <span>Inspect Export Boundary Bounds</span>
+                <div className="flex items-center justify-between text-xs font-bold text-purple-200 border-b border-purple-800/50 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Crop className="w-4 h-4 text-purple-400" />
+                    <span>Inspect Export Boundary Bounds</span>
+                  </div>
+                  <span className="text-[10px] text-purple-300 font-normal">Press <kbd className="px-1 py-0.5 bg-purple-900/80 border border-purple-600 rounded font-mono text-[9px] text-white font-bold">B</kbd> to center at cursor</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
