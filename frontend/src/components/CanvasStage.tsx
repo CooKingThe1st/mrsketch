@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { Stage, Layer, Group, Rect, Circle, Line, Arrow, Text, Tag, Label } from 'react-konva';
+import { Stage, Layer, Group, Rect, Circle, Line, Arrow, Text, Tag, Label, Shape } from 'react-konva';
 import type { SceneNode, RobotDefinition, ExportBounds, PrimitiveDefinition, PointBinding, PlotOptions, DrawingMode, PendingShapeToAdd, MacroDefinition } from '../types/schema';
 import { Sun, Moon, Check, Sparkles, X, Type, Square, Circle as CircleIcon, Triangle, MoveRight, CornerDownRight, ArrowRightLeft, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Layers, Wand2, AlignLeft, AlignCenter, AlignRight, Trash2, Maximize2, MousePointer, Laptop } from 'lucide-react';
 import { syncBoundNodesForGroup } from '../App';
@@ -241,6 +241,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const trackpadPanRafRef = useRef<number | null>(null);
   const gpuPanLayerRef = useRef<HTMLDivElement | null>(null);
   const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null);
+  // Ref to track whether a pan gesture is actively in-progress
+  const isPanningRef = useRef<boolean>(false);
+  // Stable cached visibleScene used during active panning to avoid recomputing
+  // the viewport filter on every rAF pan frame (which changes isNodeInViewport every frame).
+  const stableVisibleSceneRef = useRef<SceneNode[]>([]);
 
   const originX = dimensions.width / 2 + panOffset.x;
   const originY = dimensions.height / 2 + panOffset.y;
@@ -347,8 +352,14 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   }, [minViewportSciX, maxViewportSciX, minViewportSciY, maxViewportSciY, selectedNodeId, selectedNodeIds]);
 
   const visibleScene = useMemo(() => {
-    if (scene.length <= 40) return scene;
-    return scene.filter(isNodeInViewport);
+    // During an active pan gesture, return the cached scene from pan-start.
+    // The viewport margin already over-fetches enough nodes that nothing pops in.
+    if (isPanningRef.current && stableVisibleSceneRef.current.length > 0) {
+      return stableVisibleSceneRef.current;
+    }
+    const filtered = scene.filter(isNodeInViewport);
+    stableVisibleSceneRef.current = filtered;
+    return filtered;
   }, [scene, isNodeInViewport]);
 
   const snapTo45Degrees = (x1: number, y1: number, x2: number, y2: number) => {
@@ -543,12 +554,16 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         trackpadPanDeltaRef.current.x -= e.evt.deltaX;
         trackpadPanDeltaRef.current.y -= e.evt.deltaY;
         if (!trackpadPanRafRef.current) {
+          isPanningRef.current = true;
           trackpadPanRafRef.current = requestAnimationFrame(() => {
             trackpadPanRafRef.current = null;
             const dx = trackpadPanDeltaRef.current.x;
             const dy = trackpadPanDeltaRef.current.y;
             trackpadPanDeltaRef.current = { x: 0, y: 0 };
             setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+            // Clear the panning flag after the frame commits so the next React render
+            // that follows can recompute visibleScene with the updated viewport bounds.
+            requestAnimationFrame(() => { isPanningRef.current = false; });
           });
         }
       }
@@ -578,7 +593,12 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
   // Global window listeners for Middle-Click Viewport Panning (rAF-throttled + GPU Accelerated)
   useEffect(() => {
-    if (!isPanning) return;
+    if (!isPanning) {
+      isPanningRef.current = false;
+      return;
+    }
+    // Mark pan as active so visibleScene skips expensive recomputation each frame
+    isPanningRef.current = true;
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
       const nextPan = {
@@ -610,6 +630,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           setPanOffset(pendingPanRef.current);
           pendingPanRef.current = null;
         }
+        isPanningRef.current = false;
         setIsPanning(false);
       }
       if (e.button === 2) {
@@ -1488,8 +1509,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     return 100.0;
   };
 
-  const renderGrid = () => {
-    const gridLines = [];
+  const renderGrid = useCallback(() => {
     const unitStep = getAdaptiveGridStep(scale);
 
     const minSciX = Math.floor(toSciX(0) / unitStep) * unitStep;
@@ -1500,72 +1520,96 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     const showGrid = showKonvaGrid;
     const showAxis = plotOptions?.showAxis ?? true;
 
-    const getGridDash = (style?: string) => {
+    const gridStyleRaw = plotOptions?.gridStyle;
+
+    // Build dash pattern for setLineDash — native canvas API
+    const getLineDash = (style?: string): number[] => {
       if (style === 'dashed' || style === '--') return [6, 4];
       if (style === 'dashdot' || style === '-.') return [8, 4, 2, 4];
       if (style === 'solid' || style === '-') return [];
       return [3, 3];
     };
+    const gridDash = getLineDash(gridStyleRaw);
 
-    const gridDash = getGridDash(plotOptions?.gridStyle);
+    // Capture stable values for the closure
+    const _originX = originX;
+    const _originY = originY;
+    const _scale = scale;
+    const _mode = mode;
+    const _gridLineColor = gridLineColor;
+    const _axisLineColor = axisLineColor;
+    const _w = dimensions.width;
+    const _h = dimensions.height;
 
-    // Vertical grid lines
-    for (let sx = minSciX; sx <= maxSciX; sx += unitStep) {
-      const roundedX = Math.round(sx * 100) / 100;
-      const px = toPixelX(roundedX);
-      const isAxis = Math.abs(roundedX) < 1e-4;
-      const isMajor = mode === 'robot_designer'
-        ? Math.abs(roundedX % (unitStep * 4)) < 1e-4
-        : (Math.abs(roundedX % 1) < 1e-5 || Math.abs((roundedX % 1) - 1) < 1e-5);
+    return (
+      <Shape
+        key="grid_canvas"
+        listening={false}
+        sceneFunc={(ctx) => {
+          // Draw all grid lines using a single native canvas pass — far cheaper than
+          // mounting/diffing 80-150 individual Konva <Line /> React elements per frame.
+          ctx.save();
 
-      if (isAxis) {
-        if (!showAxis) continue;
-      } else {
-        if (!showGrid) continue;
-      }
+          const drawLine = (
+            x1: number, y1: number,
+            x2: number, y2: number,
+            color: string, lineWidth: number,
+            dash: number[], opacity: number
+          ) => {
+            ctx.globalAlpha = opacity;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.setLineDash(dash);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          };
 
-      gridLines.push(
-        <Line
-          key={`v_${roundedX}`}
-          points={[px, 0, px, dimensions.height]}
-          stroke={isAxis ? axisLineColor : gridLineColor}
-          strokeWidth={isAxis ? 2 : isMajor ? 1.2 : 0.8}
-          dash={isAxis ? [] : gridDash}
-          opacity={isAxis ? 1.0 : isMajor ? 0.85 : 0.45}
-        />
-      );
-    }
+          // Vertical lines
+          for (let sx = minSciX; sx <= maxSciX; sx += unitStep) {
+            const roundedX = Math.round(sx * 100) / 100;
+            const px = _originX + roundedX * _scale;
+            const isAxis = Math.abs(roundedX) < 1e-4;
+            const isMajor = _mode === 'robot_designer'
+              ? Math.abs(roundedX % (unitStep * 4)) < 1e-4
+              : (Math.abs(roundedX % 1) < 1e-5 || Math.abs((roundedX % 1) - 1) < 1e-5);
 
-    // Horizontal grid lines
-    for (let sy = minSciY; sy <= maxSciY; sy += unitStep) {
-      const roundedY = Math.round(sy * 100) / 100;
-      const py = toPixelY(roundedY);
-      const isAxis = Math.abs(roundedY) < 1e-4;
-      const isMajor = mode === 'robot_designer'
-        ? Math.abs(roundedY % (unitStep * 4)) < 1e-4
-        : (Math.abs(roundedY % 1) < 1e-5 || Math.abs((roundedY % 1) - 1) < 1e-5);
+            if (isAxis) {
+              if (!showAxis) continue;
+              drawLine(px, 0, px, _h, _axisLineColor, 2, [], 1.0);
+            } else {
+              if (!showGrid) continue;
+              drawLine(px, 0, px, _h, _gridLineColor, isMajor ? 1.2 : 0.8, gridDash, isMajor ? 0.85 : 0.45);
+            }
+          }
 
-      if (isAxis) {
-        if (!showAxis) continue;
-      } else {
-        if (!showGrid) continue;
-      }
+          // Horizontal lines
+          for (let sy = minSciY; sy <= maxSciY; sy += unitStep) {
+            const roundedY = Math.round(sy * 100) / 100;
+            const py = _originY - roundedY * _scale;
+            const isAxis = Math.abs(roundedY) < 1e-4;
+            const isMajor = _mode === 'robot_designer'
+              ? Math.abs(roundedY % (unitStep * 4)) < 1e-4
+              : (Math.abs(roundedY % 1) < 1e-5 || Math.abs((roundedY % 1) - 1) < 1e-5);
 
-      gridLines.push(
-        <Line
-          key={`h_${roundedY}`}
-          points={[0, py, dimensions.width, py]}
-          stroke={isAxis ? axisLineColor : gridLineColor}
-          strokeWidth={isAxis ? 2 : isMajor ? 1.2 : 0.8}
-          dash={isAxis ? [] : gridDash}
-          opacity={isAxis ? 1.0 : isMajor ? 0.85 : 0.45}
-        />
-      );
-    }
-    return gridLines;
-  };
+            if (isAxis) {
+              if (!showAxis) continue;
+              drawLine(0, py, _w, py, _axisLineColor, 2, [], 1.0);
+            } else {
+              if (!showGrid) continue;
+              drawLine(0, py, _w, py, _gridLineColor, isMajor ? 1.2 : 0.8, gridDash, isMajor ? 0.85 : 0.45);
+            }
+          }
 
-  const renderExportBounds = () => {
+          ctx.restore();
+        }}
+      />
+    );
+  }, [scale, originX, originY, dimensions.width, dimensions.height, showKonvaGrid, plotOptions?.showAxis, plotOptions?.gridStyle, gridLineColor, axisLineColor, mode, toSciX, toSciY]);
+
+
+  const renderExportBounds = useCallback(() => {
     if (mode !== 'main_scene') return null;
     const activeBounds = liveExportBounds || exportBounds;
     const left = toPixelX(activeBounds.xMin);
@@ -1860,7 +1904,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         )}
       </Group>
     );
-  };
+  }, [mode, liveExportBounds, exportBounds, scale, toPixelX, toPixelY, toSciX, toSciY, selectedNodeId, drawingMode, onSelectNode, onUpdateExportBounds]);
 
   const renderRobotPrimitives = (def: RobotDefinition, nodeStyle: SceneNode['style'], nodeScale: number = 1.0) => {
     const totalScale = nodeScale * zoomRatio;
@@ -5911,65 +5955,71 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       </Stage>
 
       {/* KaTeX Live Math Mode HTML Overlay */}
-      {mode === 'main_scene' && (plotOptions?.renderMathOnCanvas ?? true) && (
+      {mode === 'main_scene' && (plotOptions?.renderMathOnCanvas ?? true) && scale >= 25 && (
         <div
           className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10"
-          style={plotOptions?.gpuAcceleration ? { willChange: 'contents', transform: 'translateZ(0)' } : undefined}
         >
-          {visibleScene
-            .filter((node) => node.label && node.label.trim())
-            .map((node) => {
-              const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle' || node.type === 'text' || node.type === 'alias';
-              const defaultOffX = isShape ? 0.0 : 0.3;
-              const defaultOffY = isShape ? 0.0 : 0.3;
-              const nodeScale = node.scale || 1.0;
-              const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
-              const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
-              const screenPx = toPixelX(node.x) + lox;
-              const screenPy = toPixelY(node.y) + loy;
+          {/* GPU Composited Container: translated by (originX, originY).
+              Child labels are placed relative to origin, making their top/left
+              COMPLETELY STABLE during pan gestures — zero browser layout recalculations! */}
+          <div
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{
+              transform: `translate3d(${originX}px, ${originY}px, 0)`,
+              willChange: 'transform',
+            }}
+          >
+            {visibleScene
+              .filter((node) => node.label && node.label.trim())
+              .map((node) => {
+                const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle' || node.type === 'text' || node.type === 'alias';
+                const defaultOffX = isShape ? 0.0 : 0.3;
+                const defaultOffY = isShape ? 0.0 : 0.3;
+                const nodeScale = node.scale || 1.0;
+                const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
+                const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
+                // Offset relative to (originX, originY) — completely independent of panOffset!
+                const relX = node.x * scale + lox;
+                const relY = -node.y * scale + loy;
 
-              const baseFSize = node.fontSize || 12;
-              const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? true;
-              const defaultScale = 72;
+                const baseFSize = node.fontSize || 12;
+                const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? true;
+                const defaultScale = 72;
 
-              // Smart Zoom Threshold: hide labels when zoomed out far (scale < 20)
-              if (scale < 20) {
-                return null;
-              }
+                const fSize = scaleWithZoom ? Math.max(8, Math.round(baseFSize * (scale / defaultScale))) : baseFSize;
 
-              const fSize = scaleWithZoom ? Math.max(8, Math.round(baseFSize * (scale / defaultScale))) : baseFSize;
+                const trueTextColor = node.labelTextColor || node.style.color || (canvasBgTheme === 'light' ? '#0f172a' : '#f8fafc');
+                const boxOpacity = plotOptions?.labelBoxOpacity ?? 0.0;
+                const isTransparent = node.labelFillTransparent ?? (boxOpacity === 0.0);
+                const bgOpacity = isTransparent ? boxOpacity : 0.85;
+                const bgColor = node.labelFillColor || (canvasBgTheme === 'light' ? '#ffffff' : '#1e293b');
 
-              const trueTextColor = node.labelTextColor || node.style.color || (canvasBgTheme === 'light' ? '#0f172a' : '#f8fafc');
-              const boxOpacity = plotOptions?.labelBoxOpacity ?? 0.0;
-              const isTransparent = node.labelFillTransparent ?? (boxOpacity === 0.0);
-              const bgOpacity = isTransparent ? boxOpacity : 0.85;
-              const bgColor = node.labelFillColor || (canvasBgTheme === 'light' ? '#ffffff' : '#1e293b');
-
-              const renderedHtml = renderLatexToHtml(node.label || '', macros);
-              const align = node.textAlign || 'center';              
-              return (
-                <div
-                  key={`math_label_${node.id}`}
-                  className={`math-label-container absolute pointer-events-none select-none flex flex-col ${
-                    align === 'left' ? 'items-start text-left' : align === 'right' ? 'items-end text-right' : 'items-center text-center'
-                  }`}
-                  style={{
-                    left: `${screenPx}px`,
-                    top: `${screenPy}px`,
-                    transform: 'translate(-50%, -50%)',
-                    textAlign: align,
-                    lineHeight: 1.15,
-                    fontSize: `${fSize}px`,
-                    color: trueTextColor,
-                    backgroundColor: bgOpacity > 0 ? bgColor : 'transparent',
-                    opacity: 1.0,
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                  }}
-                  dangerouslySetInnerHTML={{ __html: renderedHtml }}
-                />
-              );
-            })}
+                const renderedHtml = renderLatexToHtml(node.label || '', macros);
+                const align = node.textAlign || 'center';              
+                return (
+                  <div
+                    key={`math_label_${node.id}`}
+                    className={`math-label-container absolute pointer-events-none select-none flex flex-col ${
+                      align === 'left' ? 'items-start text-left' : align === 'right' ? 'items-end text-right' : 'items-center text-center'
+                    }`}
+                    style={{
+                      left: `${relX}px`,
+                      top: `${relY}px`,
+                      transform: 'translate(-50%, -50%)',
+                      textAlign: align,
+                      lineHeight: 1.15,
+                      fontSize: `${fSize}px`,
+                      color: trueTextColor,
+                      backgroundColor: bgOpacity > 0 ? bgColor : 'transparent',
+                      opacity: 1.0,
+                      padding: '2px 4px',
+                      borderRadius: '4px',
+                    }}
+                    dangerouslySetInnerHTML={{ __html: renderedHtml }}
+                  />
+                );
+              })}
+          </div>
         </div>
       )}
     </div>

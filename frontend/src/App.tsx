@@ -184,6 +184,34 @@ export const computePointFromBinding = (binding: { nodeId: string; pointKey: str
 };
 
 export const syncBoundNodesForGroup = (scene: SceneNode[], movedNodes: SceneNode[]): SceneNode[] => {
+  if (movedNodes.length === 0) return scene;
+
+  const movedIds = new Set(movedNodes.map((n) => n.id));
+
+  // Quick check: does ANY other node in the scene have a binding to any movedId?
+  // If not, we only need to replace the movedNodes themselves in the scene!
+  let hasAnyRelevantBinding = false;
+  for (let i = 0; i < scene.length; i++) {
+    const n = scene[i];
+    if (movedIds.has(n.id)) continue;
+    if (
+      (n.startBinding && movedIds.has(n.startBinding.nodeId)) ||
+      (n.endBinding && movedIds.has(n.endBinding.nodeId)) ||
+      (n.controlBinding && movedIds.has(n.controlBinding.nodeId)) ||
+      (n.megaBindings && Object.values(n.megaBindings).some((b) => movedIds.has(b.nodeId)))
+    ) {
+      hasAnyRelevantBinding = true;
+      break;
+    }
+  }
+
+  // Fast path: No bindings to moved nodes exist. Just swap moved nodes with 0 binding calculations.
+  if (!hasAnyRelevantBinding) {
+    const movedMap = new Map<string, SceneNode>();
+    movedNodes.forEach((n) => movedMap.set(n.id, n));
+    return scene.map((n) => movedMap.get(n.id) || n);
+  }
+
   const nodeMap = new Map<string, SceneNode>();
   scene.forEach((n) => {
     nodeMap.set(n.id, n);
@@ -192,10 +220,20 @@ export const syncBoundNodesForGroup = (scene: SceneNode[], movedNodes: SceneNode
     nodeMap.set(n.id, n);
   });
 
-  const movedIds = new Set(movedNodes.map((n) => n.id));
-
   return scene.map((node) => {
     const baseNode = nodeMap.get(node.id) || node;
+
+    // If node is not moved and has no bindings referencing moved nodes, return unmodified
+    const touchesMoved = (binding?: PointBinding) => binding && movedIds.has(binding.nodeId);
+    const isBoundToMoved =
+      touchesMoved(baseNode.startBinding) ||
+      touchesMoved(baseNode.endBinding) ||
+      touchesMoved(baseNode.controlBinding) ||
+      (baseNode.megaBindings && Object.values(baseNode.megaBindings).some((b) => movedIds.has(b.nodeId)));
+
+    if (!movedIds.has(node.id) && !isBoundToMoved) {
+      return baseNode;
+    }
 
     let hasChanges = movedIds.has(node.id);
     let newX = baseNode.x;

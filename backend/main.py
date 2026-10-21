@@ -7,8 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from models import ProjectLayout
+import threading
 from compiler import compile_scene, compile_scene_to_base64
 import uvicorn
+
+# Serialization lock for Matplotlib rendering to prevent race conditions on shared figure state
+_compile_lock = threading.Lock()
 try:
     import redis
 except ImportError:
@@ -63,8 +67,9 @@ def compile_layout(
     fast_mode: bool = Query(True)
 ):
     try:
-        base64_img = compile_scene_to_base64(layout, dpi=dpi, fast_mode=fast_mode)
-        return {"image_base64": base64_img}
+        with _compile_lock:
+            base64_img = compile_scene_to_base64(layout, dpi=dpi, fast_mode=fast_mode)
+            return {"image_base64": base64_img}
     except Exception as e:
         print("Backend Compilation Error:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -72,12 +77,13 @@ def compile_layout(
 @app.post("/api/export-pdf")
 def export_pdf(layout: ProjectLayout):
     try:
-        pdf_bytes = compile_scene(layout, format='pdf', dpi=200, fast_mode=False)
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": "attachment; filename=publication_layout.pdf"}
-        )
+        with _compile_lock:
+            pdf_bytes = compile_scene(layout, format='pdf', dpi=200, fast_mode=False)
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": "attachment; filename=publication_layout.pdf"}
+            )
     except Exception as e:
         print("Backend PDF Export Error:", str(e))
         raise HTTPException(status_code=500, detail=str(e))

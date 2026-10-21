@@ -9,7 +9,7 @@ interface ClientVectorPreviewProps {
   bareSvg?: boolean;
 }
 
-export const ClientVectorPreview: React.FC<ClientVectorPreviewProps> = ({ layout, className = '', bareSvg = false }) => {
+const ClientVectorPreviewComponent: React.FC<ClientVectorPreviewProps> = ({ layout, className = '', bareSvg = false }) => {
   const exportableLayout = useMemo(() => filterLayoutForExport(layout), [layout]);
   const bounds = exportableLayout.exportBounds;
   const plotOptions = exportableLayout.plotOptions;
@@ -571,3 +571,19 @@ export const ClientVectorPreview: React.FC<ClientVectorPreviewProps> = ({ layout
     </div>
   );
 };
+
+export const ClientVectorPreview = React.memo(ClientVectorPreviewComponent, (prevProps, nextProps) => {
+  if (prevProps.className !== nextProps.className || prevProps.bareSvg !== nextProps.bareSvg) {
+    return false;
+  }
+  const p = prevProps.layout;
+  const n = nextProps.layout;
+  if (p === n) return true;
+  return (
+    p.scene === n.scene &&
+    p.exportBounds === n.exportBounds &&
+    p.plotOptions === n.plotOptions &&
+    p.macros === n.macros &&
+    p.definitions === n.definitions
+  );
+});
