@@ -74,6 +74,116 @@ export const toCubicBezierPoints = (
   return [p1x, p1y, cp1x, cp1y, cp2x, cp2y, p2x, p2y];
 };
 
+interface MathLabelItemProps {
+  node: SceneNode;
+  scale: number;
+  macros?: Record<string, MacroDefinition>;
+  canvasBgTheme: 'light' | 'dark';
+  plotOptions?: PlotOptions;
+}
+
+const MathLabelItem = React.memo<MathLabelItemProps>(({
+  node,
+  scale,
+  macros,
+  canvasBgTheme,
+  plotOptions,
+}) => {
+  const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle' || node.type === 'text' || node.type === 'alias';
+  const defaultOffX = isShape ? 0.0 : 0.3;
+  const defaultOffY = isShape ? 0.0 : 0.3;
+  const nodeScale = node.scale || 1.0;
+  const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
+  const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
+  const relX = node.x * scale + lox;
+  const relY = -node.y * scale + loy;
+
+  const baseFSize = node.fontSize || 12;
+  const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? true;
+  const defaultScale = 72;
+
+  const fSize = scaleWithZoom ? Math.max(8, Math.round(baseFSize * (scale / defaultScale))) : baseFSize;
+
+  const trueTextColor = node.labelTextColor || node.style.color || (canvasBgTheme === 'light' ? '#0f172a' : '#f8fafc');
+  const boxOpacity = plotOptions?.labelBoxOpacity ?? 0.0;
+  const isTransparent = node.labelFillTransparent ?? (boxOpacity === 0.0);
+  const bgOpacity = isTransparent ? boxOpacity : 0.85;
+  const bgColor = node.labelFillColor || (canvasBgTheme === 'light' ? '#ffffff' : '#1e293b');
+
+  const renderedHtml = renderLatexToHtml(node.label || '', macros);
+  const align = node.textAlign || 'center';
+
+  return (
+    <div
+      key={`math_label_${node.id}`}
+      className={`math-label-container absolute pointer-events-none select-none flex flex-col ${
+        align === 'left' ? 'items-start text-left' : align === 'right' ? 'items-end text-right' : 'items-center text-center'
+      }`}
+      style={{
+        left: `${relX}px`,
+        top: `${relY}px`,
+        transform: 'translate(-50%, -50%)',
+        textAlign: align,
+        lineHeight: 1.15,
+        fontSize: `${fSize}px`,
+        color: trueTextColor,
+        backgroundColor: bgOpacity > 0 ? bgColor : 'transparent',
+        opacity: 1.0,
+        padding: '2px 4px',
+        borderRadius: '4px',
+      }}
+      dangerouslySetInnerHTML={{ __html: renderedHtml }}
+    />
+  );
+}, (prev, next) => {
+  return (
+    prev.node === next.node &&
+    prev.scale === next.scale &&
+    prev.canvasBgTheme === next.canvasBgTheme &&
+    prev.plotOptions === next.plotOptions &&
+    prev.macros === next.macros
+  );
+});
+
+interface MathOverlayProps {
+  nodes: SceneNode[];
+  scale: number;
+  macros?: Record<string, MacroDefinition>;
+  canvasBgTheme: 'light' | 'dark';
+  plotOptions?: PlotOptions;
+}
+
+const MathOverlay = React.memo<MathOverlayProps>(({
+  nodes,
+  scale,
+  macros,
+  canvasBgTheme,
+  plotOptions,
+}) => {
+  return (
+    <>
+      {nodes.map((node) => (
+        <MathLabelItem
+          key={`math_label_${node.id}`}
+          node={node}
+          scale={scale}
+          macros={macros}
+          canvasBgTheme={canvasBgTheme}
+          plotOptions={plotOptions}
+        />
+      ))}
+    </>
+  );
+}, (prev, next) => {
+  return (
+    prev.nodes === next.nodes &&
+    prev.scale === next.scale &&
+    prev.canvasBgTheme === next.canvasBgTheme &&
+    prev.plotOptions === next.plotOptions &&
+    prev.macros === next.macros
+  );
+});
+
 export const CanvasStage: React.FC<CanvasStageProps> = ({
   mode,
   scene,
@@ -239,6 +349,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const panRafIdRef = useRef<number | null>(null);
   const trackpadPanDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const trackpadPanRafRef = useRef<number | null>(null);
+  const trackpadPanEndTimerRef = useRef<any>(null);
   const gpuPanLayerRef = useRef<HTMLDivElement | null>(null);
   const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null);
   // Ref to track whether a pan gesture is actively in-progress
@@ -253,33 +364,33 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   // Zoom Ratio relative to standard 40px/unit baseline scale
   const zoomRatio = scale / 40.0;
 
-  const toPixelX = (x: number) => {
+  const toPixelX = useCallback((x: number) => {
     if (mode === 'robot_designer') {
       return originX + x * zoomRatio;
     }
     return originX + x * scale;
-  };
+  }, [mode, originX, zoomRatio, scale]);
 
-  const toPixelY = (y: number) => {
+  const toPixelY = useCallback((y: number) => {
     if (mode === 'robot_designer') {
       return originY - y * zoomRatio;
     }
     return originY - y * scale;
-  };
+  }, [mode, originY, zoomRatio, scale]);
 
-  const toSciX = (px: number) => {
+  const toSciX = useCallback((px: number) => {
     if (mode === 'robot_designer') {
       return (px - originX) / zoomRatio;
     }
     return (px - originX) / scale;
-  };
+  }, [mode, originX, zoomRatio, scale]);
 
-  const toSciY = (py: number) => {
+  const toSciY = useCallback((py: number) => {
     if (mode === 'robot_designer') {
       return (originY - py) / zoomRatio;
     }
     return (originY - py) / scale;
-  };
+  }, [mode, originY, zoomRatio, scale]);
 
   const exportBoundsRef = useRef<ExportBounds>(exportBounds);
   exportBoundsRef.current = exportBounds;
@@ -361,6 +472,20 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     stableVisibleSceneRef.current = filtered;
     return filtered;
   }, [scene, isNodeInViewport]);
+
+  // Labeled nodes for KaTeX overlay: stable reference derived from scene.
+  // Never re-evaluated or re-filtered during pan gestures — zero KaTeX DOM churn!
+  const labeledNodes = useMemo(() => {
+    return scene.filter((node) => node.label && node.label.trim());
+  }, [scene]);
+
+  const unselectedVisibleNodes = useMemo(() => {
+    return visibleScene.filter((node) => !selectedNodeIds.includes(node.id) && node.id !== selectedNodeId);
+  }, [visibleScene, selectedNodeIds, selectedNodeId]);
+
+  const selectedVisibleNodes = useMemo(() => {
+    return visibleScene.filter((node) => selectedNodeIds.includes(node.id) || node.id === selectedNodeId);
+  }, [visibleScene, selectedNodeIds, selectedNodeId]);
 
   const snapTo45Degrees = (x1: number, y1: number, x2: number, y2: number) => {
     const dx = x2 - x1;
@@ -553,17 +678,22 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         // Trackpad Two-Finger Pan / Swipe (rAF throttled to prevent event loop saturation)
         trackpadPanDeltaRef.current.x -= e.evt.deltaX;
         trackpadPanDeltaRef.current.y -= e.evt.deltaY;
+        isPanningRef.current = true;
+
+        if (trackpadPanEndTimerRef.current) {
+          clearTimeout(trackpadPanEndTimerRef.current);
+        }
+        trackpadPanEndTimerRef.current = setTimeout(() => {
+          isPanningRef.current = false;
+        }, 150);
+
         if (!trackpadPanRafRef.current) {
-          isPanningRef.current = true;
           trackpadPanRafRef.current = requestAnimationFrame(() => {
             trackpadPanRafRef.current = null;
             const dx = trackpadPanDeltaRef.current.x;
             const dy = trackpadPanDeltaRef.current.y;
             trackpadPanDeltaRef.current = { x: 0, y: 0 };
             setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-            // Clear the panning flag after the frame commits so the next React render
-            // that follows can recompute visibleScene with the updated viewport bounds.
-            requestAnimationFrame(() => { isPanningRef.current = false; });
           });
         }
       }
@@ -649,7 +779,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         panRafIdRef.current = null;
       }
     };
-  }, [isPanning, panStart, panOffset.x, panOffset.y, plotOptions?.gpuAcceleration]);
+  }, [isPanning, panStart]);
 
   const [quickMenuPos, setQuickMenuPos] = useState<{ x: number; y: number; sciX: number; sciY: number } | null>(null);
   const [activeSnapPreview, setActiveSnapPreview] = useState<{ sciX: number; sciY: number; type: 'shape' | 'line_guidance' | 'grid' } | null>(null);
@@ -1905,6 +2035,9 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       </Group>
     );
   }, [mode, liveExportBounds, exportBounds, scale, toPixelX, toPixelY, toSciX, toSciY, selectedNodeId, drawingMode, onSelectNode, onUpdateExportBounds]);
+
+  const gridElement = useMemo(() => renderGrid(), [renderGrid]);
+  const exportBoundsElement = useMemo(() => renderExportBounds(), [renderExportBounds]);
 
   const renderRobotPrimitives = (def: RobotDefinition, nodeStyle: SceneNode['style'], nodeScale: number = 1.0) => {
     const totalScale = nodeScale * zoomRatio;
@@ -5858,23 +5991,19 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
             height={dimensions.height}
             fill={bgColor}
           />
-          {renderGrid()}
+          {gridElement}
         </Layer>
 
         {/* Layer 2: Main Content Layer (Only renders visible/frustum-culled shapes) */}
         <Layer id="main_content_layer">
           {mode === 'main_scene' ? (
             <>
-              {renderExportBounds()}
+              {exportBoundsElement}
               {/* Base Layer: Unselected visible scene node bodies in natural layer stack order */}
-              {visibleScene
-                .filter((node) => !selectedNodeIds.includes(node.id) && node.id !== selectedNodeId)
-                .map((node) => renderSceneNode(node, 'body'))}
+              {unselectedVisibleNodes.map((node) => renderSceneNode(node, 'body'))}
 
               {/* Focused/Selected scene node bodies rendered on top of unselected nodes */}
-              {visibleScene
-                .filter((node) => selectedNodeIds.includes(node.id) || node.id === selectedNodeId)
-                .map((node) => renderSceneNode(node, 'body'))}
+              {selectedVisibleNodes.map((node) => renderSceneNode(node, 'body'))}
             </>
           ) : (
             renderRobotDesignerPrimitives()
@@ -5969,56 +6098,13 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               willChange: 'transform',
             }}
           >
-            {visibleScene
-              .filter((node) => node.label && node.label.trim())
-              .map((node) => {
-                const isShape = node.type === 'rect' || node.type === 'circle' || node.type === 'triangle' || node.type === 'diamond' || node.type === 'obstacle' || node.type === 'text' || node.type === 'alias';
-                const defaultOffX = isShape ? 0.0 : 0.3;
-                const defaultOffY = isShape ? 0.0 : 0.3;
-                const nodeScale = node.scale || 1.0;
-                const lox = (node.labelOffsetX ?? defaultOffX) * scale * nodeScale;
-                const loy = -(node.labelOffsetY ?? defaultOffY) * scale * nodeScale;
-                // Offset relative to (originX, originY) — completely independent of panOffset!
-                const relX = node.x * scale + lox;
-                const relY = -node.y * scale + loy;
-
-                const baseFSize = node.fontSize || 12;
-                const scaleWithZoom = plotOptions?.scaleLabelsWithZoom ?? true;
-                const defaultScale = 72;
-
-                const fSize = scaleWithZoom ? Math.max(8, Math.round(baseFSize * (scale / defaultScale))) : baseFSize;
-
-                const trueTextColor = node.labelTextColor || node.style.color || (canvasBgTheme === 'light' ? '#0f172a' : '#f8fafc');
-                const boxOpacity = plotOptions?.labelBoxOpacity ?? 0.0;
-                const isTransparent = node.labelFillTransparent ?? (boxOpacity === 0.0);
-                const bgOpacity = isTransparent ? boxOpacity : 0.85;
-                const bgColor = node.labelFillColor || (canvasBgTheme === 'light' ? '#ffffff' : '#1e293b');
-
-                const renderedHtml = renderLatexToHtml(node.label || '', macros);
-                const align = node.textAlign || 'center';              
-                return (
-                  <div
-                    key={`math_label_${node.id}`}
-                    className={`math-label-container absolute pointer-events-none select-none flex flex-col ${
-                      align === 'left' ? 'items-start text-left' : align === 'right' ? 'items-end text-right' : 'items-center text-center'
-                    }`}
-                    style={{
-                      left: `${relX}px`,
-                      top: `${relY}px`,
-                      transform: 'translate(-50%, -50%)',
-                      textAlign: align,
-                      lineHeight: 1.15,
-                      fontSize: `${fSize}px`,
-                      color: trueTextColor,
-                      backgroundColor: bgOpacity > 0 ? bgColor : 'transparent',
-                      opacity: 1.0,
-                      padding: '2px 4px',
-                      borderRadius: '4px',
-                    }}
-                    dangerouslySetInnerHTML={{ __html: renderedHtml }}
-                  />
-                );
-              })}
+            <MathOverlay
+              nodes={labeledNodes}
+              scale={scale}
+              macros={macros}
+              canvasBgTheme={canvasBgTheme}
+              plotOptions={plotOptions}
+            />
           </div>
         </div>
       )}
