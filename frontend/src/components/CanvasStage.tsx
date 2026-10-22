@@ -111,6 +111,7 @@ const MathLabelItem = React.memo<MathLabelItemProps>(({
   const bgColor = node.labelFillColor || (canvasBgTheme === 'light' ? '#ffffff' : '#1e293b');
 
   const renderedHtml = renderLatexToHtml(node.label || '', macros);
+  const htmlObj = useMemo(() => ({ __html: renderedHtml }), [renderedHtml]);
   const align = node.textAlign || 'center';
 
   return (
@@ -120,9 +121,10 @@ const MathLabelItem = React.memo<MathLabelItemProps>(({
         align === 'left' ? 'items-start text-left' : align === 'right' ? 'items-end text-right' : 'items-center text-center'
       }`}
       style={{
-        left: `${relX}px`,
-        top: `${relY}px`,
-        transform: 'translate(-50%, -50%)',
+        left: 0,
+        top: 0,
+        transform: `translate3d(${relX}px, ${relY}px, 0) translate(-50%, -50%)`,
+        willChange: 'transform',
         textAlign: align,
         lineHeight: 1.15,
         fontSize: `${fSize}px`,
@@ -132,7 +134,7 @@ const MathLabelItem = React.memo<MathLabelItemProps>(({
         padding: '2px 4px',
         borderRadius: '4px',
       }}
-      dangerouslySetInnerHTML={{ __html: renderedHtml }}
+      dangerouslySetInnerHTML={htmlObj}
     />
   );
 }, (prev, next) => {
@@ -250,6 +252,17 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const scale = currentViewport.scale;
   const panOffset = currentViewport.panOffset;
 
+  const setViewport = useCallback((newScale: number, newPan: { x: number; y: number }) => {
+    if (mode === 'main_scene') {
+      setSceneViewport({ scale: newScale, panOffset: newPan });
+    } else if (activeRobotDefId) {
+      setDesignerViewports((prev) => ({
+        ...prev,
+        [activeRobotDefId]: { scale: newScale, panOffset: newPan },
+      }));
+    }
+  }, [mode, activeRobotDefId]);
+
   const setScale = (action: number | ((s: number) => number)) => {
     if (mode === 'main_scene') {
       setSceneViewport((prev) => {
@@ -297,13 +310,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       const newPanX = -centerX * newScale;
       const newPanY = centerY * newScale;
 
-      setScale(newScale);
-      setPanOffset({ x: newPanX, y: newPanY });
+      setViewport(newScale, { x: newPanX, y: newPanY });
     } else {
-      setScale(40);
-      setPanOffset({ x: 0, y: 0 });
+      setViewport(40, { x: 0, y: 0 });
     }
-  }, [dimensions.width, dimensions.height, exportBounds, mode]);
+  }, [dimensions.width, dimensions.height, exportBounds, mode, setViewport]);
 
   const hasAutoFittedRef = useRef<boolean>(false);
   useEffect(() => {
@@ -357,6 +368,29 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   // Stable cached visibleScene used during active panning to avoid recomputing
   // the viewport filter on every rAF pan frame (which changes isNodeInViewport every frame).
   const stableVisibleSceneRef = useRef<SceneNode[]>([]);
+
+  // Zoom coalescing, rAF throttling & GPU-scaled KaTeX raster scale
+  const pendingZoomRef = useRef<{ scale: number; panOffset: { x: number; y: number } } | null>(null);
+  const zoomRafRef = useRef<number | null>(null);
+  const isZoomingRef = useRef<boolean>(false);
+  const zoomEndTimerRef = useRef<any>(null);
+  const targetScaleRef = useRef<number>(scale);
+  const [baseRasterScale, setBaseRasterScale] = useState<number>(scale);
+
+  // Sync baseRasterScale when scale changes outside of active zooming gestures (e.g. Fit View, +/- buttons)
+  useEffect(() => {
+    if (!isZoomingRef.current) {
+      setBaseRasterScale(scale);
+    }
+  }, [scale]);
+
+  // Clean up zoom timers and animation frames on unmount
+  useEffect(() => {
+    return () => {
+      if (zoomRafRef.current) cancelAnimationFrame(zoomRafRef.current);
+      if (zoomEndTimerRef.current) clearTimeout(zoomEndTimerRef.current);
+    };
+  }, []);
 
   const originX = dimensions.width / 2 + panOffset.x;
   const originY = dimensions.height / 2 + panOffset.y;
@@ -463,9 +497,9 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   }, [minViewportSciX, maxViewportSciX, minViewportSciY, maxViewportSciY, selectedNodeId, selectedNodeIds]);
 
   const visibleScene = useMemo(() => {
-    // During an active pan gesture, return the cached scene from pan-start.
+    // During an active pan or zoom gesture, return the cached scene from start.
     // The viewport margin already over-fetches enough nodes that nothing pops in.
-    if (isPanningRef.current && stableVisibleSceneRef.current.length > 0) {
+    if ((isPanningRef.current || isZoomingRef.current) && stableVisibleSceneRef.current.length > 0) {
       return stableVisibleSceneRef.current;
     }
     const filtered = scene.filter(isNodeInViewport);
@@ -653,72 +687,87 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    if (isTrackpad) {
-      if (e.evt.ctrlKey) {
-        // Trackpad Pinch-to-Zoom (Browser emits ctrlKey === true during trackpad pinch)
-        const zoomDelta = -e.evt.deltaY * 0.008;
-        const zoomFactor = Math.exp(zoomDelta);
-        const oldScale = scale;
-        const newScale = Math.min(300, Math.max(10, oldScale * zoomFactor));
-        if (Math.abs(newScale - oldScale) < 0.005) return;
+    if (isTrackpad && !e.evt.ctrlKey) {
+      // Trackpad Two-Finger Pan / Swipe (rAF throttled to prevent event loop saturation)
+      trackpadPanDeltaRef.current.x -= e.evt.deltaX;
+      trackpadPanDeltaRef.current.y -= e.evt.deltaY;
+      isPanningRef.current = true;
 
-        const factor = newScale / oldScale;
-        const currentOriginX = dimensions.width / 2 + panOffset.x;
-        const currentOriginY = dimensions.height / 2 + panOffset.y;
+      if (trackpadPanEndTimerRef.current) {
+        clearTimeout(trackpadPanEndTimerRef.current);
+      }
+      trackpadPanEndTimerRef.current = setTimeout(() => {
+        isPanningRef.current = false;
+      }, 150);
 
-        const newOriginX = pointer.x - (pointer.x - currentOriginX) * factor;
-        const newOriginY = pointer.y - (pointer.y - currentOriginY) * factor;
-
-        setPanOffset({
-          x: newOriginX - dimensions.width / 2,
-          y: newOriginY - dimensions.height / 2,
+      if (!trackpadPanRafRef.current) {
+        trackpadPanRafRef.current = requestAnimationFrame(() => {
+          trackpadPanRafRef.current = null;
+          const dx = trackpadPanDeltaRef.current.x;
+          const dy = trackpadPanDeltaRef.current.y;
+          trackpadPanDeltaRef.current = { x: 0, y: 0 };
+          setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
         });
-        setScale(newScale);
-      } else {
-        // Trackpad Two-Finger Pan / Swipe (rAF throttled to prevent event loop saturation)
-        trackpadPanDeltaRef.current.x -= e.evt.deltaX;
-        trackpadPanDeltaRef.current.y -= e.evt.deltaY;
-        isPanningRef.current = true;
-
-        if (trackpadPanEndTimerRef.current) {
-          clearTimeout(trackpadPanEndTimerRef.current);
-        }
-        trackpadPanEndTimerRef.current = setTimeout(() => {
-          isPanningRef.current = false;
-        }, 150);
-
-        if (!trackpadPanRafRef.current) {
-          trackpadPanRafRef.current = requestAnimationFrame(() => {
-            trackpadPanRafRef.current = null;
-            const dx = trackpadPanDeltaRef.current.x;
-            const dy = trackpadPanDeltaRef.current.y;
-            trackpadPanDeltaRef.current = { x: 0, y: 0 };
-            setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-          });
-        }
       }
       return;
     }
 
-    // Standard Mouse Mode: Wheel zooms in/out centered at pointer
-    const zoomFactor = e.evt.deltaY < 0 ? 1.15 : 0.85;
-    const oldScale = scale;
-    const newScale = Math.min(300, Math.max(10, Math.round(oldScale * zoomFactor)));
-    if (newScale === oldScale) return;
+    // Zooming: Either Trackpad Pinch-to-Zoom (ctrlKey === true) or Standard Mouse Wheel
+    const startScale = pendingZoomRef.current ? pendingZoomRef.current.scale : scale;
+    const startPan = pendingZoomRef.current ? pendingZoomRef.current.panOffset : panOffset;
 
-    const factor = newScale / oldScale;
+    let newScale: number;
 
-    const currentOriginX = dimensions.width / 2 + panOffset.x;
-    const currentOriginY = dimensions.height / 2 + panOffset.y;
+    if (isTrackpad && e.evt.ctrlKey) {
+      // Trackpad Pinch-to-Zoom (Browser emits ctrlKey === true during trackpad pinch)
+      const zoomDelta = -e.evt.deltaY * 0.008;
+      const zoomFactor = Math.exp(zoomDelta);
+      newScale = Math.min(300, Math.max(10, Math.round((startScale * zoomFactor) * 2) / 2));
+      if (Math.abs(newScale - startScale) < 0.25) return;
+    } else {
+      // Standard Mouse Wheel: Rigid 5px steps per wheel notch, snapping cleanly to multiples of 5
+      const direction = e.evt.deltaY < 0 ? 1 : -1;
+      const stepped = direction > 0
+        ? Math.floor(startScale / 5) * 5 + 5
+        : Math.ceil(startScale / 5) * 5 - 5;
+      newScale = Math.min(300, Math.max(10, stepped));
+      if (newScale === startScale) return;
+    }
+
+    const factor = newScale / startScale;
+    const currentOriginX = dimensions.width / 2 + startPan.x;
+    const currentOriginY = dimensions.height / 2 + startPan.y;
 
     const newOriginX = pointer.x - (pointer.x - currentOriginX) * factor;
     const newOriginY = pointer.y - (pointer.y - currentOriginY) * factor;
 
-    setPanOffset({
+    const newPan = {
       x: newOriginX - dimensions.width / 2,
       y: newOriginY - dimensions.height / 2,
-    });
-    setScale(newScale);
+    };
+
+    pendingZoomRef.current = { scale: newScale, panOffset: newPan };
+    targetScaleRef.current = newScale;
+    isZoomingRef.current = true;
+
+    if (zoomEndTimerRef.current) {
+      clearTimeout(zoomEndTimerRef.current);
+    }
+    zoomEndTimerRef.current = setTimeout(() => {
+      isZoomingRef.current = false;
+      pendingZoomRef.current = null;
+      setBaseRasterScale(targetScaleRef.current);
+    }, 150);
+
+    if (!zoomRafRef.current) {
+      zoomRafRef.current = requestAnimationFrame(() => {
+        zoomRafRef.current = null;
+        if (pendingZoomRef.current) {
+          const { scale: s, panOffset: p } = pendingZoomRef.current;
+          setViewport(s, p);
+        }
+      });
+    }
   };
 
   // Global window listeners for Middle-Click Viewport Panning (rAF-throttled + GPU Accelerated)
@@ -4770,14 +4819,14 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       <div className="absolute top-4 left-4 z-30 bg-slate-900/90 backdrop-blur border border-slate-700/80 rounded-xl p-2.5 flex items-center gap-3 shadow-xl text-xs font-semibold text-slate-200">
         <span>Scale:</span>
         <button
-          onClick={() => setScale((s) => Math.max(10, s - 5))}
+          onClick={() => setScale((s) => Math.max(10, Math.ceil(s / 5) * 5 - 5))}
           className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-200"
         >
           -
         </button>
         <span className="w-16 text-center text-indigo-400 font-mono">{scale} px/unit</span>
         <button
-          onClick={() => setScale((s) => Math.min(300, s + 5))}
+          onClick={() => setScale((s) => Math.min(300, Math.floor(s / 5) * 5 + 5))}
           className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-200"
         >
           +
@@ -4794,8 +4843,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
         <button
           onClick={() => {
-            setPanOffset({ x: 0, y: 0 });
-            setScale(40);
+            setViewport(40, { x: 0, y: 0 });
           }}
           className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-[11px]"
           title="Reset Camera to (0,0) at baseline 40 px/unit"
@@ -6088,19 +6136,20 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         <div
           className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10"
         >
-          {/* GPU Composited Container: translated by (originX, originY).
-              Child labels are placed relative to origin, making their top/left
-              COMPLETELY STABLE during pan gestures — zero browser layout recalculations! */}
+          {/* GPU Composited Container: translated by (originX, originY) and scaled by (scale / baseRasterScale).
+              Child labels are placed relative to origin at baseRasterScale, making their layout
+              COMPLETELY STABLE during pan and zoom gestures — zero browser layout recalculations! */}
           <div
             className="absolute top-0 left-0 pointer-events-none"
             style={{
-              transform: `translate3d(${originX}px, ${originY}px, 0)`,
+              transform: `translate3d(${originX}px, ${originY}px, 0) scale(${scale / (baseRasterScale || scale)})`,
+              transformOrigin: '0 0',
               willChange: 'transform',
             }}
           >
             <MathOverlay
               nodes={labeledNodes}
-              scale={scale}
+              scale={baseRasterScale || scale}
               macros={macros}
               canvasBgTheme={canvasBgTheme}
               plotOptions={plotOptions}

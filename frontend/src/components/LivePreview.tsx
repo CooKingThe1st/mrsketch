@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { ProjectLayout } from '../types/schema';
 import { filterLayoutForExport } from '../utils/aabbFilter';
 import { getApiBaseUrl } from '../utils/api';
@@ -48,6 +48,14 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastJsonRef = useRef<string>('');
   const pendingTimerRef = useRef<any>(null);
+
+  // Compute a stable render key from only the fields that affect compiled output.
+  // This prevents auto-compile from firing on UI-only changes (e.g. selectedNodeId,
+  // panel state) that don't change the final image.
+  const renderKey = useMemo(() => {
+    const { scene, exportBounds, plotOptions, macros, definitions } = layout;
+    return JSON.stringify({ scene, exportBounds, plotOptions, macros, definitions });
+  }, [layout.scene, layout.exportBounds, layout.plotOptions, layout.macros, layout.definitions]);
 
   const toggleAutoCompile = () => {
     const next = !autoCompile;
@@ -127,7 +135,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     return () => {
       if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
     };
-  }, [layout]);
+  }, [renderKey]);
 
   // Initial compile or auto-compile debounced sync loop
   useEffect(() => {
@@ -152,7 +160,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [layout, autoCompile]);
+  }, [renderKey, autoCompile]);
 
   // Keyboard shortcut Ctrl+Enter / Cmd+Enter to manually trigger render
   useEffect(() => {
@@ -164,7 +172,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [layout]);
+  }, [renderKey]);
 
   const handlePopOutPreview = () => {
     const previewUrl = `${window.location.origin}${window.location.pathname}#preview`;

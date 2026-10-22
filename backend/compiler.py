@@ -499,8 +499,13 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
         fig_height = 0.5
         fig_width = fig_height * aspect
     
-    fig, ax = get_figure_and_axes(fig_width, fig_height, dpi=dpi)
-    
+    # Round figure dimensions to nearest 0.25" to improve figure cache hit rate
+    # across similar layouts where bounds differ by small fractional amounts.
+    fig_width_r = max(1.0, round(round(fig_width * 4) / 4, 2))
+    fig_height_r = max(0.5, round(round(fig_height * 4) / 4, 2))
+
+    fig, ax = get_figure_and_axes(fig_width_r, fig_height_r, dpi=dpi)
+
     try:
         # Configure Background & Opacity
         bg_color_str = plot_opts.backgroundColor or '#ffffff'
@@ -1100,7 +1105,15 @@ def compile_scene(layout: ProjectLayout, format: str = 'png', dpi: int = 80, fas
 
         pad_inches = plot_opts.marginPadding if plot_opts.marginPadding is not None else 0.05
         buf = io.BytesIO()
-        plt.savefig(buf, format=format, bbox_inches='tight', pad_inches=pad_inches, facecolor=fig.get_facecolor(), dpi=dpi)
+
+        if fast_mode and format == 'png':
+            # Fast preview path: skip bbox_inches='tight' (saves 50-150ms of font-metric computation).
+            # The axes are explicitly set via xlim/ylim and the figure size is already computed
+            # from exportBounds, so tight layout is unnecessary for preview accuracy.
+            plt.savefig(buf, format=format, pad_inches=0, facecolor=fig.get_facecolor(), dpi=dpi)
+        else:
+            # Full export path: use tight layout for publication-accurate cropping.
+            plt.savefig(buf, format=format, bbox_inches='tight', pad_inches=pad_inches, facecolor=fig.get_facecolor(), dpi=dpi)
         buf.seek(0)
         img_bytes = buf.getvalue()
         buf.close()

@@ -126,10 +126,37 @@ export function expandLatexMacros(rawLabel: string, macros?: Record<string, Macr
 
 const fullRenderCache = new Map<string, string>();
 
+// Maximum entries for both caches — prevents unbounded memory growth during long sessions
+const MAX_CACHE_SIZE = 500;
+
+function evictCacheIfNeeded(cache: Map<string, string>) {
+  if (cache.size >= MAX_CACHE_SIZE) {
+    // Delete the first (oldest) entry
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) cache.delete(firstKey);
+  }
+}
+
+const macroHashCache = new WeakMap<Record<string, MacroDefinition>, string>();
+
+export function getMacroHash(macros?: Record<string, MacroDefinition>): string {
+  if (!macros) return '';
+  const cached = macroHashCache.get(macros);
+  if (cached !== undefined) return cached;
+  const hash = Object.values(macros)
+    .map((m) => `${m.command}:${m.argsCount}:${m.template}`)
+    .sort()
+    .join('|');
+  macroHashCache.set(macros, hash);
+  return hash;
+}
+
 export function renderLatexToHtml(rawLabel: string, macros?: Record<string, MacroDefinition>): string {
   if (!rawLabel) return '';
 
-  const cacheKey = macros ? `${rawLabel}__${Object.keys(macros).length}` : rawLabel;
+  // Build a content-stable cache key using cached macro signature
+  const macroHash = getMacroHash(macros);
+  const cacheKey = macroHash ? `${rawLabel}__${macroHash}` : rawLabel;
   const cached = fullRenderCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
@@ -158,7 +185,7 @@ export function renderLatexToHtml(rawLabel: string, macros?: Record<string, Macr
           rendered = mathSnippet;
         }
 
-        if (katexStringCache.size > 2000) katexStringCache.clear();
+        evictCacheIfNeeded(katexStringCache);
         katexStringCache.set(spaced, rendered);
         return rendered;
       };
@@ -191,7 +218,7 @@ export function renderLatexToHtml(rawLabel: string, macros?: Record<string, Macr
     })
     .join('');
 
-  if (fullRenderCache.size > 2000) fullRenderCache.clear();
+  evictCacheIfNeeded(fullRenderCache);
   fullRenderCache.set(cacheKey, result);
   return result;
 }
